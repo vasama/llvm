@@ -4534,6 +4534,34 @@ void Sema::CheckAlignasUnderalignment(Decl *D) {
   }
 }
 
+static void handleRegisterAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  // check the attribute arguments.
+  if (AL.getNumArgs() != 1) {
+    S.Diag(AL.getLoc(), diag::err_attribute_wrong_number_arguments) << AL << 1;
+    return;
+  }
+
+  Expr *ArrayE = AL.getArgAsExpr(0);
+  auto *ArrayDE = dyn_cast<DeclRefExpr>(ArrayE);
+  if (!ArrayDE) {
+    //TODO: DIAG
+    return;
+  }
+  auto *ArrayD = dyn_cast<VarDecl>(ArrayDE->getDecl());
+  if (!ArrayD) {
+    //TODO: DIAG
+    return;
+  }
+  QualType ArrayT = ArrayD->getType();
+
+  auto *ElementD = cast<VarDecl>(D);
+  QualType ElementT = ElementD->getType();
+
+  
+
+  D->addAttr(::new (S.Context) RegisterAttr(S.Context, AL, ArrayD));
+}
+
 bool Sema::checkMSInheritanceAttrOnDefinition(
     CXXRecordDecl *RD, SourceRange Range, bool BestCase,
     MSInheritanceModel ExplicitModel) {
@@ -8753,6 +8781,9 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_Aligned:
     handleAlignedAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_Register:
+    handleRegisterAttr(S, D, AL);
     break;
   case ParsedAttr::AT_AlignValue:
     handleAlignValueAttr(S, D, AL);

@@ -1844,8 +1844,11 @@ Sema::ActOnCXXNew(SourceLocation StartLoc, bool UseGlobal,
       return ExprError(Diag(Chunk.Loc, diag::err_new_array_of_auto)
         << D.getSourceRange());
     if (Chunk.Arr.hasStatic)
-      return ExprError(Diag(Chunk.Loc, diag::err_static_illegal_in_new)
-        << D.getSourceRange());
+      return ExprError(Diag(Chunk.Loc, diag::err_illegal_array_size_modifier_in_new)
+        << "static" << D.getSourceRange());
+    if (Chunk.Arr.hasRegister)
+      return ExprError(Diag(Chunk.Loc, diag::err_illegal_array_size_modifier_in_new)
+        << "register"<< D.getSourceRange());
     if (!Chunk.Arr.NumElts && !Initializer)
       return ExprError(Diag(Chunk.Loc, diag::err_array_new_needs_size)
         << D.getSourceRange());

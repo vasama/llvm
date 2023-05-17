@@ -6538,6 +6538,8 @@ def err_array_static_not_outermost : Error<
   "%0 used in non-outermost array type derivation">;
 def err_array_star_outside_prototype : Error<
   "star modifier used outside of function prototype">;
+def err_array_register_with_non_static_storage_duration : Error<
+  "register array with non-static storage duration">;
 def err_illegal_decl_pointer_to_reference : Error<
   "'%0' declared as a pointer to a reference of type %1">;
 def err_illegal_decl_mempointer_to_reference : Error<
@@ -7557,8 +7559,8 @@ def err_uuidof_with_multiple_guids : Error<
   "cannot call operator __uuidof on a type with multiple GUIDs">;
 def err_incomplete_typeid : Error<"'typeid' of incomplete type %0">;
 def err_variably_modified_typeid : Error<"'typeid' of variably modified type %0">;
-def err_static_illegal_in_new : Error<
-  "the 'static' modifier for the array size is not legal in new expressions">;
+def err_illegal_array_size_modifier_in_new : Error<
+  "the '%0' modifier for the array size is not legal in new expressions">;
 def err_array_new_needs_size : Error<
   "array size must be specified in new expression with no initializer">;
 def err_bad_new_type : Error<

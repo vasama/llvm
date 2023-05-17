@@ -532,6 +532,9 @@ void TypePrinter::printConstantArrayAfter(const ConstantArrayType *T,
   if (T->getSizeModifier() == ArrayType::Static)
     OS << "static ";
 
+  if (T->getSizeModifier() == ArrayType::Register)
+    OS << "register ";
+
   OS << T->getSize().getZExtValue() << ']';
   printAfter(T->getElementType(), OS);
 }
@@ -564,6 +567,8 @@ void TypePrinter::printVariableArrayAfter(const VariableArrayType *T,
 
   if (T->getSizeModifier() == VariableArrayType::Static)
     OS << "static ";
+  else if (T->getSizeModifier() == VariableArrayType::Register)
+    OS << "register ";
   else if (T->getSizeModifier() == VariableArrayType::Star)
     OS << '*';
 

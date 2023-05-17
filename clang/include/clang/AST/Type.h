@@ -3045,10 +3045,11 @@ class ArrayType : public Type, public llvm::FoldingSetNode {
 public:
   /// Capture whether this is a normal array (e.g. int X[4])
   /// an array with a static size (e.g. int X[static 4]), or an array
-  /// with a star size (e.g. int X[*]).
+  /// with a star size (e.g. int X[*]), or a
+  /// distributed array (e.g. int X[__register]).
   /// 'static' is only allowed on function parameters.
   enum ArraySizeModifier {
-    Normal, Static, Star
+    Normal, Static, Star, Register
   };
 
 private:

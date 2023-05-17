@@ -614,6 +614,9 @@ void JSONNodeDumper::VisitArrayType(const ArrayType *AT) {
   case ArrayType::Static:
     JOS.attribute("sizeModifier", "static");
     break;
+  case ArrayType::Register:
+    JOS.attribute("sizeModifier", "register");
+    break;
   case ArrayType::Normal:
     break;
   }

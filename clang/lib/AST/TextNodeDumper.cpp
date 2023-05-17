@@ -1439,6 +1439,9 @@ void TextNodeDumper::VisitArrayType(const ArrayType *T) {
   case ArrayType::Static:
     OS << " static";
     break;
+  case ArrayType::Register:
+    OS << " register";
+    break;
   case ArrayType::Star:
     OS << " *";
     break;

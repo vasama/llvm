@@ -929,6 +929,7 @@ void USRGenerator::VisitType(QualType T) {
       case ArrayType::Static:
         Out << 's';
         break;
+      //P2889: case ArrayType::Register:
       case ArrayType::Star:
         Out << '*';
         break;

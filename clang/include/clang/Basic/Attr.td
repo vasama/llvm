@@ -720,6 +720,12 @@ def Aligned : InheritableAttr {
   let Documentation = [Undocumented];
 }
 
+def Register : Attr {
+  let Spellings = [Keyword<"__register">];
+  let Args = [DeclArgument<Var, "ArrayDecl">];
+  let Documentation = [Undocumented];
+}
+
 def AlignValue : Attr {
   let Spellings = [
     // Unfortunately, this is semantically an assertion, not a directive

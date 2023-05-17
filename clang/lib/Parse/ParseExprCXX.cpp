@@ -3335,7 +3335,7 @@ void Parser::ParseDirectNewDeclarator(Declarator &D) {
     MaybeParseCXX11Attributes(Attrs);
 
     D.AddTypeInfo(DeclaratorChunk::getArray(0,
-                                            /*isStatic=*/false, /*isStar=*/false,
+                                            /*isStatic=*/false, /*isStar=*/false, /*hasRegister=*/false,
                                             Size.get(), T.getOpenLocation(),
                                             T.getCloseLocation()),
                   std::move(Attrs), T.getCloseLocation());

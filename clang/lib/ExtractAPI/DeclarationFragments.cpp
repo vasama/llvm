@@ -214,6 +214,9 @@ DeclarationFragments DeclarationFragmentsBuilder::getFragmentsForType(
     case ArrayType::Static:
       Fragments.append("static", DeclarationFragments::FragmentKind::Keyword);
       break;
+    case ArrayType::Register:
+      Fragments.append("register", DeclarationFragments::FragmentKind::Keyword);
+      break;
     case ArrayType::Star:
       Fragments.append("*", DeclarationFragments::FragmentKind::Text);
       break;

@@ -1968,6 +1968,7 @@ bool Parser::MightBeDeclarator(DeclaratorContext Context) {
     case tok::equal:
     case tok::equalequal: // Might be a typo for '='.
     case tok::kw_alignas:
+    case tok::kw___register:
     case tok::kw_asm:
     case tok::kw___attribute:
     case tok::l_brace:
@@ -3045,6 +3046,35 @@ void Parser::ParseAlignmentSpecifier(ParsedAttributes &Attrs,
   ArgExprs.push_back(ArgExpr.get());
   Attrs.addNew(KWName, KWLoc, nullptr, KWLoc, ArgExprs.data(), 1, Kind,
                EllipsisLoc);
+}
+
+/// [P2889] '__register' '(' id-expression ')'
+void Parser::ParseRegisterSpecifier(ParsedAttributes &Attrs,
+                                    SourceLocation *EndLoc) {
+  assert(Tok.getKind() == tok::kw___register &&
+         "Not a register array specifier!");
+
+  IdentifierInfo *KWName = Tok.getIdentifierInfo();
+  auto Kind = Tok.getKind();
+  SourceLocation KWLoc = ConsumeToken();
+
+  BalancedDelimiterTracker T(*this, tok::l_paren);
+  if (T.expectAndConsume())
+    return;
+
+  ExprResult ArgExpr = ParseCXXIdExpression(/*isAddressOfOperand=*/false);
+  if (ArgExpr.isInvalid()) {
+    T.skipToEnd();
+    return;
+  }
+
+  T.consumeClose();
+  if (EndLoc)
+    *EndLoc = T.getCloseLocation();
+
+  ArgsVector ArgExprs;
+  ArgExprs.push_back(ArgExpr.get());
+  Attrs.addNew(KWName, KWLoc, nullptr, KWLoc, ArgExprs.data(), 1, Kind);
 }
 
 ExprResult Parser::ParseExtIntegerArgument() {
@@ -7479,6 +7509,7 @@ void Parser::ParseParameterDeclarationClause(
 /// [C99]   direct-declarator '[' type-qual-list[opt] '*' ']'
 /// [C++11] direct-declarator '[' constant-expression[opt] ']'
 ///                           attribute-specifier-seq[opt]
+/// [P2889] direct-declarator '[' '__register' ']'
 void Parser::ParseBracketDeclarator(Declarator &D) {
   if (CheckProhibitedCXX11Attribute())
     return;
@@ -7494,7 +7525,7 @@ void Parser::ParseBracketDeclarator(Declarator &D) {
     MaybeParseCXX11Attributes(attrs);
 
     // Remember that we parsed the empty array type.
-    D.AddTypeInfo(DeclaratorChunk::getArray(0, false, false, nullptr,
+    D.AddTypeInfo(DeclaratorChunk::getArray(0, false, false, false, nullptr,
                                             T.getOpenLocation(),
                                             T.getCloseLocation()),
                   std::move(attrs), T.getCloseLocation());
@@ -7510,11 +7541,23 @@ void Parser::ParseBracketDeclarator(Declarator &D) {
     MaybeParseCXX11Attributes(attrs);
 
     // Remember that we parsed a array type, and remember its features.
-    D.AddTypeInfo(DeclaratorChunk::getArray(0, false, false, ExprRes.get(),
+    D.AddTypeInfo(DeclaratorChunk::getArray(0, false, false, false, ExprRes.get(),
                                             T.getOpenLocation(),
                                             T.getCloseLocation()),
                   std::move(attrs), T.getCloseLocation());
     return;
+  } else if (Tok.getKind() == tok::kw___register &&
+             GetLookAheadToken(1).is(tok::r_square)) {
+    ConsumeToken();
+
+    T.consumeClose();
+    ParsedAttributes attrs(AttrFactory);
+    MaybeParseCXX11Attributes(attrs);
+
+    D.AddTypeInfo(DeclaratorChunk::getArray(0, false, false, true, nullptr,
+                                            T.getOpenLocation(),
+                                            T.getCloseLocation()),
+                  std::move(attrs), T.getCloseLocation());
   } else if (Tok.getKind() == tok::code_completion) {
     cutOffParsing();
     Actions.CodeCompleteBracketDeclarator(getCurScope());
@@ -7589,7 +7632,7 @@ void Parser::ParseBracketDeclarator(Declarator &D) {
   // Remember that we parsed a array type, and remember its features.
   D.AddTypeInfo(
       DeclaratorChunk::getArray(DS.getTypeQualifiers(), StaticLoc.isValid(),
-                                isStar, NumElements.get(), T.getOpenLocation(),
+                                isStar, false, NumElements.get(), T.getOpenLocation(),
                                 T.getCloseLocation()),
       std::move(DS.getAttributes()), T.getCloseLocation());
 }

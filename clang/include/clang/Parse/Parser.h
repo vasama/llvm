@@ -3006,6 +3006,8 @@ private:
                                 SourceLocation &EllipsisLoc);
   void ParseAlignmentSpecifier(ParsedAttributes &Attrs,
                                SourceLocation *endLoc = nullptr);
+  void ParseRegisterSpecifier(ParsedAttributes &Attrs,
+                              SourceLocation *endLoc = nullptr);
   ExprResult ParseExtIntegerArgument();
 
   VirtSpecifiers::Specifier isCXX11VirtSpecifier(const Token &Tok) const;

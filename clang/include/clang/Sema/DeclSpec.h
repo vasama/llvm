@@ -1272,6 +1272,8 @@ struct DeclaratorChunk {
     /// True if this dimension was [*].  In this case, NumElts is null.
     unsigned isStar : 1;
 
+    unsigned hasRegister : 1;
+
     /// This is the size of the array, or null if [] or [*] was specified.
     /// Since the parser is multi-purpose, and we don't want to impose a root
     /// expression class on all clients, NumElts is untyped.
@@ -1645,16 +1647,17 @@ struct DeclaratorChunk {
 
   /// Return a DeclaratorChunk for an array.
   static DeclaratorChunk getArray(unsigned TypeQuals,
-                                  bool isStatic, bool isStar, Expr *NumElts,
+                                  bool isStatic, bool isStar, bool hasRegister, Expr *NumElts,
                                   SourceLocation LBLoc, SourceLocation RBLoc) {
     DeclaratorChunk I;
-    I.Kind          = Array;
-    I.Loc           = LBLoc;
-    I.EndLoc        = RBLoc;
-    I.Arr.TypeQuals = TypeQuals;
-    I.Arr.hasStatic = isStatic;
-    I.Arr.isStar    = isStar;
-    I.Arr.NumElts   = NumElts;
+    I.Kind            = Array;
+    I.Loc             = LBLoc;
+    I.EndLoc          = RBLoc;
+    I.Arr.TypeQuals   = TypeQuals;
+    I.Arr.hasStatic   = isStatic;
+    I.Arr.isStar      = isStar;
+    I.Arr.hasRegister = hasRegister;
+    I.Arr.NumElts     = NumElts;
     return I;
   }
 

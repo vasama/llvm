@@ -5094,6 +5094,8 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         ASM = ArrayType::Star;
       else if (ATI.hasStatic)
         ASM = ArrayType::Static;
+      else if (ATI.hasRegister)
+        ASM = ArrayType::Register;
       else
         ASM = ArrayType::Normal;
       if (ASM == ArrayType::Star && !D.isPrototypeContext()) {
