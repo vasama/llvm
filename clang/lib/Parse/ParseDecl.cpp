@@ -4064,6 +4064,11 @@ void Parser::ParseDeclarationSpecifiers(
       ParseAlignmentSpecifier(DS.getAttributes());
       continue;
 
+    // P2889 register-specifier
+    case tok::kw___register:
+      ParseRegisterSpecifier(DS.getAttributes());
+      continue;
+
     // friend
     case tok::kw_friend:
       if (DSContext == DeclSpecContext::DSC_class)

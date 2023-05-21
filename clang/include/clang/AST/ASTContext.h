@@ -194,6 +194,7 @@ class ASTContext : public RefCountedBase<ASTContext> {
   mutable llvm::ContextualFoldingSet<ConstantArrayType, ASTContext &>
       ConstantArrayTypes;
   mutable llvm::FoldingSet<IncompleteArrayType> IncompleteArrayTypes;
+  //mutable llvm::FoldingSet<RegisterArrayType> RegisterArrayTypes;
   mutable std::vector<VariableArrayType*> VariableArrayTypes;
   mutable llvm::FoldingSet<DependentSizedArrayType> DependentSizedArrayTypes;
   mutable llvm::FoldingSet<DependentSizedExtVectorType>
@@ -1440,6 +1441,9 @@ public:
   QualType getIncompleteArrayType(QualType EltTy,
                                   ArrayType::ArraySizeModifier ASM,
                                   unsigned IndexTypeQuals) const;
+
+  //QualType getRegisterArrayType(QualType EltTy,
+  //                              unsigned IndexTypeQuals) const;
 
   /// Return the unique reference to the type for a constant array of
   /// the specified element type.

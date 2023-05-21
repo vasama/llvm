@@ -1,3 +1,5 @@
+extern int a[];
+extern int a[] = {0};
 extern int a[__register];
 /****/ int a[__register];
 /****/ int a[__register];

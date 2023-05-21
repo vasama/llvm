@@ -2434,6 +2434,10 @@ bool Sema::checkArrayElementAlignment(QualType EltTy, SourceLocation Loc) {
   return false;
 }
 
+static bool isC99ArraySizeModifier(ArrayType::ArraySizeModifier ASM) {
+  return ASM == ArrayType::Static || ASM == ArrayType::Star;
+}
+
 /// Build an array type.
 ///
 /// \param T The type of each element in the array.
@@ -2650,7 +2654,7 @@ QualType Sema::BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
 
   // If this is not C99, diagnose array size modifiers on non-VLAs.
   if (!getLangOpts().C99 && !T->isVariableArrayType() &&
-      (ASM != ArrayType::Normal || Quals != 0)) {
+      (isC99ArraySizeModifier(ASM) || Quals != 0)) {
     Diag(Loc, getLangOpts().CPlusPlus ? diag::err_c99_array_usage_cxx
                                       : diag::ext_c99_array_usage)
         << ASM;

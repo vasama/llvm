@@ -2183,6 +2183,7 @@ public:
   bool isArrayType() const;
   bool isConstantArrayType() const;
   bool isIncompleteArrayType() const;
+  //bool isRegisterArrayType() const;
   bool isVariableArrayType() const;
   bool isDependentSizedArrayType() const;
   bool isRecordType() const;
@@ -3177,6 +3178,20 @@ public:
     ID.AddInteger(TypeQuals);
   }
 };
+
+//class RegisterArrayType : public IncompleteArrayType {
+//  friend class ASTContext; // ASTContext creates these.
+//
+//  RegisterArrayType(QualType et, QualType can,
+//                    unsigned tq)
+//      : IncompleteArrayType(RegisterArray, et, can,
+//                            ArraySizeModifier::Register, tq) {}
+//
+//  static void Profile(llvm::FoldingSetNodeID &ID, QualType ET,
+//                      unsigned TypeQuals) {
+//    return IncompleteArrayType::Profile(ID, ET, ArraySizeModifier::Register, TypeQuals);
+//  }
+//};
 
 /// Represents a C array with a specified size that is not an
 /// integer-constant-expression.  For example, 'int s[x+foo()]'.
@@ -7001,6 +7016,10 @@ inline bool Type::isConstantArrayType() const {
 inline bool Type::isIncompleteArrayType() const {
   return isa<IncompleteArrayType>(CanonicalType);
 }
+
+//inline bool Type::isRegisterArrayType() const {
+//  return isa<RegisterArrayType>(CanonicalType);
+//}
 
 inline bool Type::isVariableArrayType() const {
   return isa<VariableArrayType>(CanonicalType);

@@ -3897,6 +3897,39 @@ QualType ASTContext::getIncompleteArrayType(QualType elementType,
   return QualType(newType, 0);
 }
 
+//QualType ASTContext::getRegisterArrayType(QualType elementType,
+//                                          unsigned elementTypeQuals) const {
+//  llvm::FoldingSetNodeID ID;
+//  RegisterArrayType::Profile(ID, elementType, elementTypeQuals);
+//
+//  void *insertPos = nullptr;
+//  if (RegisterArrayType *iat =
+//       RegisterArrayTypes.FindNodeOrInsertPos(ID, insertPos))
+//    return QualType(iat, 0);
+//
+//  QualType canon;
+//
+//  if (!elementType.isCanonical() || elementType.hasLocalQualifiers()) {
+//    SplitQualType canonSplit = getCanonicalType(elementType).split();
+//    canon = getRegisterArrayType(QualType(canonSplit.Ty, 0),
+//                                 elementTypeQuals);
+//    canon = getQualifiedType(canon, canonSplit.Quals);
+//
+//    RegisterArrayType *existing =
+//      RegisterArrayTypes.FindNodeOrInsertPos(ID, insertPos);
+//    assert(!existing && "Shouldn't be in the map!"); (void) existing;
+//  }
+//
+//  auto *newType = new (*this, TypeAlignment)
+//    RegisterArrayType(elementType, canon,
+//                      ArrayType::ArraySizeModifier::Register,
+//                      elementTypeQuals);
+//
+//  RegisterArrayTypes.InsertNode(newType, insertPos);
+//  Types.push_back(newType);
+//  return QualType(newType, 0);
+//}
+
 ASTContext::BuiltinVectorTypeInfo
 ASTContext::getBuiltinVectorTypeInfo(const BuiltinType *Ty) const {
 #define SVE_INT_ELTTY(BITS, ELTS, SIGNED, NUMVECTORS)                          \

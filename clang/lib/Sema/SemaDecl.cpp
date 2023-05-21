@@ -7850,6 +7850,8 @@ NamedDecl *Sema::ActOnVariableDeclarator(
     }
   }
 
+  
+
   // Handle attributes prior to checking for duplicates in MergeVarDecl
   ProcessDeclAttributes(S, NewVD, D);
 
@@ -13753,6 +13755,7 @@ void Sema::ActOnUninitializedDecl(Decl *RealDecl) {
       if (Var->isConstexpr())
         Diag(Var->getLocation(), diag::err_constexpr_var_requires_const_init)
             << Var;
+      //else if (Type->isRegisterArrayType()) /*Nothing*/;
       else
         Diag(Var->getLocation(),
              diag::err_typecheck_incomplete_array_needs_initializer);

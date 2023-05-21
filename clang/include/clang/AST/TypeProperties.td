@@ -124,6 +124,13 @@ let Class = IncompleteArrayType in {
   }]>;
 }
 
+//let Class = RegisterArrayType in {
+//  def : Creator<[{
+//    return ctx.getRegisterArrayType(elementType,
+//                                    indexQualifiers.getCVRQualifiers());
+//  }]>;
+//}
+
 let Class = VariableArrayType in {
   def : Property<"leftBracketLoc", SourceLocation> {
     let Read = [{ node->getLBracketLoc() }];
