@@ -1,0 +1,277 @@
+#ifndef __registered_sequence
+#define __registered_sequence
+
+#include <regseq.h>
+
+namespace std {
+
+template<typename _Ty>
+class __regseq_arrow
+{
+	_Ty __value;
+
+public:
+	explicit __regseq_arrow(auto&&... __args)
+		: __value(static_cast<decltype(__args)&&>(__args)...)
+	{
+	}
+
+	[[nodiscard]] _Ty* operator->()
+	{
+		return __builtin_addressof(__value);
+	}
+
+	[[nodiscard]] _Ty const* operator->() const
+	{
+		return __builtin_addressof(__value);
+	}
+};
+
+template<typename _Ty>
+class registered_sequence
+{
+	class __subsequence
+	{
+		friend registered_sequence;
+
+		::regseq_ptr_t __ptr;
+	
+	public:
+		[[nodiscard]] _Ty* data() const
+		{
+			return reinterpret_cast<_Ty*>(::regseq_data(__ptr));
+		}
+	
+		[[nodiscard]] size_t size() const
+		{
+			return ::regseq_size(__ptr) / sizeof(_Ty);
+		}
+	
+		[[nodiscard]] _Ty* begin() const
+		{
+			return data();
+		}
+	
+		[[nodiscard]] _Ty* end() const
+		{
+			return data() + size();
+		}
+	};
+
+	class __subsequence_range
+	{
+		friend registered_sequence;
+
+		::regseq_t __seq;
+
+	public:
+		class iterator
+		{
+			::regseq_ptr_t __ptr;
+
+		public:
+			using value_type = __subsequence;
+
+			iterator() = default;
+
+			explicit iterator(::regseq_ptr_t __ptr)
+				: __ptr(__ptr)
+			{
+			}
+
+			[[nodiscard]] value_type operator*() const
+			{
+				return value_type(__ptr);
+			}
+
+			[[nodiscard]] __regseq_arrow<value_type> operator->() const
+			{
+				return __regseq_arrow<value_type>(__ptr);
+			}
+
+			iterator& operator++()
+			{
+				__ptr = ::regseq_next(__ptr);
+			}
+
+			iterator operator++(int)
+			{
+				iterator __i = *this;
+				__ptr = ::regseq_next(__ptr);
+				return __i;
+			}
+
+#if 0
+			iterator& operator--()
+			{
+				__ptr = ::regseq_prev(__ptr);
+			}
+
+			iterator operator--(int)
+			{
+				iterator __i = *this;
+				__ptr = ::regseq_prev(__ptr);
+				return __i;
+			}
+#endif
+
+			[[nodiscard]] friend bool operator==(iterator const& __l, iterator const& __r)
+			{
+				return __l.__ptr == __r.__ptr;
+			}
+		};
+
+		[[nodiscard]] iterator begin() const
+		{
+			return iterator(::regseq_begin(__seq));
+		}
+
+		[[nodiscard]] iterator end() const
+		{
+			return iterator(::regseq_end(__seq));
+		}
+	};
+
+	::__regseq __seq;
+
+public:
+	using value_type = _Ty;
+
+	class iterator
+	{
+		::regseq_ptr_t __ptr;
+#if 0
+		_Ty* __beg;
+#endif
+		_Ty* __pos;
+		_Ty* __end;
+
+	public:
+		iterator() = default;
+
+		explicit iterator(::regseq_ptr_t __ptr, _Ty* __beg, _Ty* __pos, _Ty* __end)
+			: __ptr(__ptr)
+#if 0
+			, __beg(__beg)
+#endif
+			, __pos(__pos)
+			, __end(__end)
+		{
+		}
+
+		using value_type = _Ty;
+
+		[[nodiscard]] _Ty& operator*() const
+		{
+			return *__pos;
+		}
+
+		[[nodiscard]] _Ty* operator->() const
+		{
+			return __pos;
+		}
+
+		iterator& operator++()
+		{
+#if 1
+			_Ty* __beg;
+#endif
+
+			++__pos;
+			if (__pos == __end)
+			{
+				__ptr = regseq_next(__ptr);
+				__beg = reinterpret_cast<_Ty*>(regseq_data(__ptr));
+				__end = __beg + regseq_size(__ptr) / sizeof(_Ty);
+				__pos = __beg;
+			}
+			return *this;
+		}
+
+		iterator& operator++(int)
+		{
+			iterator __i = *this;
+			++__i;
+			return __i;
+		}
+
+#if 0
+		iterator& operator--()
+		{
+			if (__pos == __beg)
+			{
+				__ptr = regseq_prev(__ptr);
+				__beg = reinterpret_cast<_Ty*>(regseq_data(__ptr));
+				__end = __beg + regseq_size(__ptr) / sizeof(_Ty);
+				__pos = __end;
+			}
+			--__pos;
+			return *this;
+		}
+
+		iterator& operator--(int)
+		{
+			iterator __i = *this;
+			--__i;
+			return __i;
+		}
+#endif
+
+		[[nodiscard]] friend bool operator==(iterator const& __l, iterator const& __r)
+		{
+			return __l.__ptr == __r.__ptr && __l.__pos == __r.__pos;
+		}
+	};
+
+#if 0
+	registered_sequence() = delete;
+#else
+	consteval registered_sequence()
+		: __seq{}
+	{
+	}
+#endif
+
+	registered_sequence(registered_sequence const&) = delete;
+	registered_sequence& operator=(registered_sequence const&) = delete;
+
+	[[nodiscard]] __subsequence_range subsequences() const
+	{
+		return __subsequence_range(__get_seq());
+	}
+
+	[[nodiscard]] iterator begin() const
+	{
+		if (::regseq_ptr_t const __ptr = ::regseq_begin(__get_seq()))
+		{
+			_Ty* const __data = reinterpret_cast<_Ty*>(::regseq_data(__ptr));
+			size_t const __size = ::regseq_size(__ptr) / sizeof(_Ty);
+			return iterator(__ptr, __data, __data, __data + __size);
+		}
+		return iterator(nullptr, nullptr, nullptr, nullptr);
+	}
+
+	[[nodiscard]] iterator end() const
+	{
+		return iterator(::regseq_end(__get_seq()), nullptr, nullptr, nullptr);
+	}
+
+	[[nodiscard]] operator ::regseq_t() const
+	{
+		return __get_seq(this);
+	}
+
+private:
+	::regseq_t __get_seq() const
+	{
+#if 1
+		return &__seq;
+#else
+		return reinterpret_cast<::regseq_t>(const_cast<void*>(static_cast<void const*>(this)));
+#endif
+	}
+};
+
+} // namespace std
+
+#endif

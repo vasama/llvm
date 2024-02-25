@@ -13582,6 +13582,14 @@ void Sema::AddInitializerToDecl(Decl *RealDecl, Expr *Init, bool DirectInit) {
     return;
   }
 
+  if (Init && !Init->getType().isNull() &&
+      VDecl->getType()->isRegisteredSequenceType()) {
+    //P2889: TODO: 
+    Diag(Init->getExprLoc(), diag::err_illegal_initializer);
+    VDecl->setInvalidDecl();
+    return;
+  }
+
   // WebAssembly tables can't be used to initialise a variable.
   if (Init && !Init->getType().isNull() &&
       Init->getType()->isWebAssemblyTableType()) {
