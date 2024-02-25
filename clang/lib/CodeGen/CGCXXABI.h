@@ -658,6 +658,11 @@ public:
   virtual std::pair<llvm::Value *, const CXXRecordDecl *>
   LoadVTablePtr(CodeGenFunction &CGF, Address This,
                 const CXXRecordDecl *RD) = 0;
+
+  /*************************** Registered sequences ***************************/
+
+  virtual llvm::Constant *emitRegisteredSequence(const VarDecl &D) = 0;
+  virtual void emitRegisteredSequenceElement(const VarDecl &D, const VarDecl &ED, llvm::GlobalVariable *EV) = 0;
 };
 
 // Create an instance of a C++ ABI class:

@@ -467,6 +467,14 @@ void CodeGenFunction::EmitStaticVarDecl(const VarDecl &D,
     DI->setLocation(D.getLocation());
     DI->EmitGlobalVariable(var, &D);
   }
+
+  #if 0
+  //P2889: Emit registered sequence definition.
+  if (auto *RDA = D.getAttr<RegisterAttr>()) {
+    assert(CGM.getLangOpts().CPlusPlus && "Not yet implemented for C");
+    CGM.getCXXABI().emitRegisteredSequenceElement(*RDA->getVarDecl(), D, var);
+  }
+  #endif
 }
 
 namespace {

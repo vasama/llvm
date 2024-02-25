@@ -51,6 +51,17 @@ class ItaniumCXXABI : public CodeGen::CGCXXABI {
   llvm::SmallVector<std::pair<const VarDecl *, llvm::Function *>, 8>
       ThreadWrappers;
 
+  struct RegisteredSequenceInfo
+  {
+    llvm::GlobalVariable *Root = nullptr;
+    llvm::GlobalVariable *HiddenNode = nullptr;
+  };
+
+  llvm::DenseMap<const VarDecl *, RegisteredSequenceInfo> RegisteredSequences;
+  llvm::StructType *RegisteredSequenceRootType = nullptr;
+  llvm::StructType *RegisteredSequenceNodeType = nullptr;
+  llvm::FunctionCallee RegisteredSequenceLink = nullptr;
+
 protected:
   bool UseARMMethodPtrABI;
   bool UseARMGuardVarABI;
@@ -427,6 +438,24 @@ public:
   std::pair<llvm::Value *, const CXXRecordDecl *>
   LoadVTablePtr(CodeGenFunction &CGF, Address This,
                 const CXXRecordDecl *RD) override;
+
+  /**************************** Registered Sequences *************************/
+
+private:
+  llvm::StructType *getRegisteredSequenceRootType();
+  llvm::StructType *getRegisteredSequenceNodeType();
+  llvm::FunctionCallee getRegisteredSequenceLink();
+
+  llvm::GlobalVariable *emitRegisteredSequenceRoot(const VarDecl &D);
+  llvm::GlobalVariable *emitRegisteredSequenceNode(const VarDecl &D,
+                                                   llvm::StringRef Name,
+                                                   llvm::Constant *Start,
+                                                   llvm::Constant *End);
+  void emitRegisteredSequenceHiddenNode(const VarDecl &D, llvm::GlobalVariable *GV);
+
+public:
+  llvm::Constant *emitRegisteredSequence(const VarDecl &D) override;
+  void emitRegisteredSequenceElement(const VarDecl &D, const VarDecl &ED, llvm::GlobalVariable *EV) override;
 
  private:
    llvm::Constant *
@@ -5101,6 +5130,198 @@ ItaniumCXXABI::getSignedVirtualMemberFunctionPointer(const CXXMethodDecl *MD) {
   QualType funcType = CGM.getContext().getMemberPointerType(
       MD->getType(), MD->getParent()->getTypeForDecl());
   return CGM.getMemberFunctionPointer(thunk, funcType);
+}
+
+llvm::StructType *ItaniumCXXABI::getRegisteredSequenceRootType() {
+  if (!RegisteredSequenceRootType) {
+    llvm::StructType *T = llvm::StructType::create(CGM.getLLVMContext());
+    llvm::Type *P = llvm::PointerType::getUnqual(T);
+    T->setBody(P, P);
+    RegisteredSequenceRootType = T;
+  }
+  return RegisteredSequenceRootType;
+}
+
+llvm::StructType *ItaniumCXXABI::getRegisteredSequenceNodeType() {
+  if (!RegisteredSequenceNodeType) {
+    llvm::Type *RT = getRegisteredSequenceRootType();
+    llvm::Type *PV = llvm::PointerType::getUnqual(CGM.getLLVMContext());
+    RegisteredSequenceNodeType = llvm::StructType::get(RT, PV, PV);
+  }
+  return RegisteredSequenceNodeType;
+}
+
+llvm::FunctionCallee ItaniumCXXABI::getRegisteredSequenceLink() {
+  if (!RegisteredSequenceLink) {
+    llvm::Type *Args[] = {
+      llvm::PointerType::get(getRegisteredSequenceRootType(), 0),
+      llvm::PointerType::get(getRegisteredSequenceNodeType(), 0),
+    };
+    RegisteredSequenceLink = CGM.CreateRuntimeFunction(
+      llvm::FunctionType::get(CGM.VoidTy, Args), "__regseq_link");
+  }
+  return RegisteredSequenceLink;
+}
+
+llvm::GlobalVariable *ItaniumCXXABI::emitRegisteredSequenceRoot(const VarDecl &D) {
+  llvm::GlobalVariable *&Root = RegisteredSequences[&D].Root;
+  if (Root)
+    return Root;
+
+  llvm::StructType *RootTy = getRegisteredSequenceRootType();
+
+  SmallString<256> RootName;
+  {
+    llvm::raw_svector_ostream Out(RootName);
+    getMangleContext().mangleRegisteredSequenceRoot(D, Out);
+  }
+
+  Root = new llvm::GlobalVariable(
+    CGM.getModule(),
+    RootTy,
+    /*isConstant=*/false,
+    llvm::GlobalValue::LinkOnceAnyLinkage,
+    nullptr,
+    RootName);
+
+  Root->setVisibility(CGM.GetLLVMVisibility(D.getVisibility()));
+
+  // By default, initialize the list to empty.
+  Root->setInitializer(llvm::ConstantStruct::get(RootTy, Root, Root));
+
+  return Root;
+}
+
+llvm::GlobalVariable *ItaniumCXXABI::emitRegisteredSequenceNode(
+    const VarDecl &D, llvm::StringRef NodeName, llvm::Constant *Start, llvm::Constant *End) {
+  llvm::Constant *Root = emitRegisteredSequenceRoot(D);
+
+  llvm::StructType *RootTy = getRegisteredSequenceRootType();
+  llvm::StructType *NodeTy = getRegisteredSequenceNodeType();
+
+  llvm::Constant *Init = llvm::ConstantStruct::get(
+    NodeTy, llvm::ConstantAggregateZero::get(RootTy), Start, End);
+
+  llvm::GlobalVariable *Node = new llvm::GlobalVariable(
+      CGM.getModule(), NodeTy,
+      /*isConstant=*/false, llvm::GlobalValue::LinkOnceAnyLinkage, Init,
+      NodeName);
+
+  {
+    SmallString<256> FnName;
+    {
+      llvm::raw_svector_ostream Out(FnName);
+      getMangleContext().mangleRegisteredSequenceInit(D, Out);
+    }
+
+    llvm::FunctionType *FTy = llvm::FunctionType::get(CGM.VoidTy, false);
+    const CGFunctionInfo &FI = CGM.getTypes().arrangeNullaryFunction();
+
+    llvm::Function *Fn = CGM.CreateGlobalInitOrCleanUpFunction(
+      FTy, FnName, FI, D.getLocation());
+
+    // Emit function
+    {
+      CodeGenFunction CGF(CGM);
+      CGF.StartFunction(GlobalDecl(&D, DynamicInitKind::Initializer),
+                        CGM.getContext().VoidTy, Fn, FI, FunctionArgList());
+      CGF.EmitNounwindRuntimeCall(getRegisteredSequenceLink(), { Root, Node });
+      CGF.FinishFunction();
+    }
+
+    CGM.AddGlobalCtor(Fn, 90, ~0U, CGM.supportsCOMDAT() ? Node : nullptr);
+  }
+
+  return Node;
+}
+
+void ItaniumCXXABI::emitRegisteredSequenceHiddenNode(
+  const VarDecl &D, llvm::GlobalVariable *GV) {
+  llvm::GlobalVariable *&Node = RegisteredSequences[&D].HiddenNode;
+
+  llvm::Type *ArrayType = llvm::ArrayType::get(CGM.CharTy, 0);
+
+  if (!Node) {
+    llvm::GlobalVariable *Start = nullptr;
+    {
+      SmallString<256> StartName;
+      {
+        llvm::raw_svector_ostream Out(StartName);
+        getMangleContext().mangleRegisteredSequenceSectionStart(D, Out);
+      }
+  
+      Start = new llvm::GlobalVariable(
+        CGM.getModule(),
+        ArrayType,
+        /*isConstant=*/false,
+        llvm::GlobalValue::ExternalLinkage,
+        nullptr,
+        StartName);
+    }
+
+    llvm::GlobalVariable *End = nullptr;
+    {
+      SmallString<256> EndName;
+      {
+        llvm::raw_svector_ostream Out(EndName);
+        getMangleContext().mangleRegisteredSequenceSectionEnd(D, Out);
+      }
+  
+      End = new llvm::GlobalVariable(
+        CGM.getModule(),
+        ArrayType,
+        /*isConstant=*/false,
+        llvm::GlobalValue::ExternalLinkage,
+        nullptr,
+        EndName);
+    }
+
+    SmallString<256> NodeName;
+    {
+      llvm::raw_svector_ostream Out(NodeName);
+      getMangleContext().mangleRegisteredSequenceNode(D, Out);
+    }
+
+    Node = emitRegisteredSequenceNode(D, NodeName, Start, End);
+    Node->setVisibility(llvm::GlobalValue::HiddenVisibility);
+  }
+
+  SmallString<256> SectionName;
+  {
+    llvm::raw_svector_ostream Out(SectionName);
+    getMangleContext().mangleRegisteredSequenceSection(D, Out);
+  }
+  GV->setSection(SectionName);
+}
+
+llvm::Constant *ItaniumCXXABI::emitRegisteredSequence(const VarDecl &D) {
+  llvm::GlobalVariable *Root = emitRegisteredSequenceRoot(D);
+  //TODO: Definition
+  return Root;
+}
+
+//P2889: TODO: If root is not default inline:
+//             Emit root as empty and set weak.
+//             On emit hidden node, init root and set strong.
+void ItaniumCXXABI::emitRegisteredSequenceElement(const VarDecl &D, const VarDecl &ED, llvm::GlobalVariable *EV) {
+  llvm::GlobalVariable *Root = emitRegisteredSequenceRoot(D);
+
+  if (EV->hasSection() || EV->hasImplicitSection() ||
+      Root->hasDefaultVisibility() && EV->hasLinkOnceLinkage()) {
+
+    SmallString<256> NodeName;
+    {
+      llvm::raw_svector_ostream Out(NodeName);
+      getMangleContext().mangleRegisteredSequenceNode(ED, Out);
+    }
+
+    llvm::Constant *OnePastEV = llvm::ConstantExpr::getInBoundsGetElementPtr(
+      EV->getValueType(), EV, llvm::ConstantInt::get(CGM.IntTy, 1));
+
+    emitRegisteredSequenceNode(D, NodeName, EV, OnePastEV);
+  } else {
+    emitRegisteredSequenceHiddenNode(D, EV);
+  }
 }
 
 void WebAssemblyCXXABI::emitBeginCatch(CodeGenFunction &CGF,

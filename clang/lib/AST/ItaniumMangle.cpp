@@ -115,6 +115,13 @@ public:
   void mangleCanonicalTypeName(QualType T, raw_ostream &,
                                bool NormalizeIntegers) override;
 
+  void mangleRegisteredSequenceSection(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceSectionStart(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceSectionEnd(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceRoot(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceNode(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceInit(const VarDecl &D, raw_ostream &) override;
+
   void mangleCXXCtorComdat(const CXXConstructorDecl *D, raw_ostream &) override;
   void mangleCXXDtorComdat(const CXXDestructorDecl *D, raw_ostream &) override;
   void mangleStaticGuardVariable(const VarDecl *D, raw_ostream &) override;
@@ -7344,6 +7351,30 @@ void ItaniumMangleContextImpl::mangleCXXRTTIName(
 void ItaniumMangleContextImpl::mangleCanonicalTypeName(
     QualType Ty, raw_ostream &Out, bool NormalizeIntegers = false) {
   mangleCXXRTTIName(Ty, Out, NormalizeIntegers);
+}
+
+void ItaniumMangleContextImpl::mangleRegisteredSequenceSection(const VarDecl &D, raw_ostream &Out) {
+  Out << "__P2889_S_" << D.getName();
+}
+
+void ItaniumMangleContextImpl::mangleRegisteredSequenceSectionStart(const VarDecl &D, raw_ostream &Out) {
+  Out << "__start___P2889_S_" << D.getName();
+}
+
+void ItaniumMangleContextImpl::mangleRegisteredSequenceSectionEnd(const VarDecl &D, raw_ostream &Out) {
+  Out << "__stop___P2889_S_" << D.getName();
+}
+
+void ItaniumMangleContextImpl::mangleRegisteredSequenceRoot(const VarDecl &D, raw_ostream &Out) {
+  Out << "__P2889_R_" << D.getName();
+}
+
+void ItaniumMangleContextImpl::mangleRegisteredSequenceNode(const VarDecl &D, raw_ostream &Out) {
+  Out << "__P2889_N_" << D.getName();
+}
+
+void ItaniumMangleContextImpl::mangleRegisteredSequenceInit(const VarDecl &D, raw_ostream &Out) {
+  Out << "__P2889_I_" << D.getName();
 }
 
 void ItaniumMangleContextImpl::mangleStringLiteral(const StringLiteral *, raw_ostream &) {

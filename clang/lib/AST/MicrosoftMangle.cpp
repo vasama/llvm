@@ -200,6 +200,12 @@ public:
                                      raw_ostream &Out) override;
   void mangleCanonicalTypeName(QualType T, raw_ostream &,
                                bool NormalizeIntegers) override;
+  void mangleRegisteredSequenceSection(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceSectionStart(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceSectionEnd(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceRoot(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceNode(const VarDecl &D, raw_ostream &) override;
+  void mangleRegisteredSequenceInit(const VarDecl &D, raw_ostream &) override;
   void mangleReferenceTemporary(const VarDecl *, unsigned ManglingNumber,
                                 raw_ostream &) override;
   void mangleStaticGuardVariable(const VarDecl *D, raw_ostream &Out) override;
@@ -4018,6 +4024,30 @@ void MicrosoftMangleContextImpl::mangleCanonicalTypeName(
   MicrosoftCXXNameMangler Mangler(*this, Out);
   Mangler.getStream() << '?';
   Mangler.mangleType(T.getCanonicalType(), SourceRange());
+}
+
+void MicrosoftMangleContextImpl::mangleRegisteredSequenceSection(const VarDecl &D, raw_ostream &Out) {
+  Out << "__P2889_S_" << D.getName();
+}
+
+void MicrosoftMangleContextImpl::mangleRegisteredSequenceSectionStart(const VarDecl &D, raw_ostream &Out) {
+  Out << "__start__P2889_S_" << D.getName();
+}
+
+void MicrosoftMangleContextImpl::mangleRegisteredSequenceSectionEnd(const VarDecl &D, raw_ostream &Out) {
+  Out << "__end__P2889_S_" << D.getName();
+}
+
+void MicrosoftMangleContextImpl::mangleRegisteredSequenceRoot(const VarDecl &D, raw_ostream &Out) {
+  Out << "__P2889_R_" << D.getName();
+}
+
+void MicrosoftMangleContextImpl::mangleRegisteredSequenceNode(const VarDecl &D, raw_ostream &Out) {
+  Out << "__P2889_N_" << D.getName();
+}
+
+void MicrosoftMangleContextImpl::mangleRegisteredSequenceInit(const VarDecl &D, raw_ostream &Out) {
+  Out << "__P2889_I_" << D.getName();
 }
 
 void MicrosoftMangleContextImpl::mangleReferenceTemporary(

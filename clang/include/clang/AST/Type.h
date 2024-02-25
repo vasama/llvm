@@ -2917,6 +2917,8 @@ public:
   /// set of type specifiers.
   bool isSpecifierType() const;
 
+  bool isRegisteredSequenceType() const;
+
   /// Determine the linkage of this type.
   Linkage getLinkage() const;
 

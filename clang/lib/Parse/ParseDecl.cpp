@@ -2177,6 +2177,7 @@ bool Parser::MightBeDeclarator(DeclaratorContext Context) {
     case tok::equal:
     case tok::equalequal: // Might be a typo for '='.
     case tok::kw_alignas:
+    case tok::kw___register:
     case tok::kw_asm:
     case tok::kw___attribute:
     case tok::l_brace:
@@ -3421,6 +3422,35 @@ void Parser::ParseBoundsAttribute(IdentifierInfo &AttrName,
                ScopeName, ScopeLoc, ArgExprs.data(), ArgExprs.size(), Form);
 }
 
+/// [P2889] '__register' '(' id-expression ')'
+void Parser::ParseRegisterSpecifier(ParsedAttributes &Attrs,
+                                    SourceLocation *EndLoc) {
+  assert(Tok.getKind() == tok::kw___register &&
+         "Not a register specifier!");
+
+  IdentifierInfo *KWName = Tok.getIdentifierInfo();
+  auto Kind = Tok.getKind();
+  SourceLocation KWLoc = ConsumeToken();
+
+  BalancedDelimiterTracker T(*this, tok::l_paren);
+  if (T.expectAndConsume())
+    return;
+
+  ExprResult ArgExpr = ParseCXXIdExpression(/*isAddressOfOperand=*/false);
+  if (ArgExpr.isInvalid()) {
+    T.skipToEnd();
+    return;
+  }
+
+  T.consumeClose();
+  if (EndLoc)
+    *EndLoc = T.getCloseLocation();
+
+  ArgsVector ArgExprs;
+  ArgExprs.push_back(ArgExpr.get());
+  Attrs.addNew(KWName, KWLoc, nullptr, KWLoc, ArgExprs.data(), 1, Kind);
+}
+
 ExprResult Parser::ParseExtIntegerArgument() {
   assert(Tok.isOneOf(tok::kw__ExtInt, tok::kw__BitInt) &&
          "Not an extended int type");
@@ -4421,6 +4451,11 @@ void Parser::ParseDeclarationSpecifiers(
       diagnoseUseOfC11Keyword(Tok);
       isInvalid = DS.setFunctionSpecNoreturn(Loc, PrevSpec, DiagID);
       break;
+
+    // P2889 register-specifier
+    case tok::kw___register:
+      ParseRegisterSpecifier(DS.getAttributes());
+      continue;
 
     // friend
     case tok::kw_friend:

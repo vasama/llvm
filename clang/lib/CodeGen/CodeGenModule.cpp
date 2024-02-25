@@ -5658,6 +5658,12 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
   if (CGDebugInfo *DI = getModuleDebugInfo())
     if (getCodeGenOpts().hasReducedDebugInfo())
       DI->EmitGlobalVariable(GV, D);
+
+  // P2889: Emit registered sequence definition.
+  if (auto *RDA = D->getAttr<RegisterAttr>()) {
+    assert(getLangOpts().CPlusPlus && "Not yet implemented for C");
+    getCXXABI().emitRegisteredSequenceElement(*RDA->getVarDecl(), *D, GV);
+  }
 }
 
 void CodeGenModule::EmitExternalVarDeclaration(const VarDecl *D) {

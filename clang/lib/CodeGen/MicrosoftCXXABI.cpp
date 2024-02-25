@@ -805,6 +805,9 @@ public:
   LoadVTablePtr(CodeGenFunction &CGF, Address This,
                 const CXXRecordDecl *RD) override;
 
+  llvm::Constant *emitRegisteredSequence(const VarDecl &D) override;
+  void emitRegisteredSequenceElement(const VarDecl &D, const VarDecl &ED, llvm::GlobalVariable *EV) override;
+
   bool
   isPermittedToBeHomogeneousAggregate(const CXXRecordDecl *RD) const override;
 
@@ -4518,4 +4521,13 @@ bool MicrosoftCXXABI::isPermittedToBeHomogeneousAggregate(
   // field without padding? Not that I know of, so don't check fields here &
   // rely on the padding check.
   return true;
+}
+
+llvm::Constant *MicrosoftCXXABI::emitRegisteredSequence(const VarDecl &D) {
+  assert(false);
+  return nullptr;
+}
+
+void MicrosoftCXXABI::emitRegisteredSequenceElement(const VarDecl &D, const VarDecl &ED, llvm::GlobalVariable *EV) {
+  assert(false);
 }

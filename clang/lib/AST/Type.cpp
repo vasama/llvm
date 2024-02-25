@@ -3109,6 +3109,15 @@ bool Type::isSpecifierType() const {
   }
 }
 
+bool Type::isRegisteredSequenceType() const {
+  if (const auto *RD = getAsCXXRecordDecl()) {
+    IdentifierInfo *II = RD->getIdentifier();
+    if (II && II->isStr("registered_sequence") && RD->isInStdNamespace())
+      return true;
+  }
+  return false;
+}
+
 ElaboratedTypeKeyword
 TypeWithKeyword::getKeywordForTypeSpec(unsigned TypeSpec) {
   switch (TypeSpec) {

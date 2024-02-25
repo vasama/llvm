@@ -181,6 +181,13 @@ public:
   virtual void mangleCanonicalTypeName(QualType T, raw_ostream &,
                                        bool NormalizeIntegers = false) = 0;
 
+  virtual void mangleRegisteredSequenceSection(const VarDecl &D, raw_ostream &) = 0;
+  virtual void mangleRegisteredSequenceSectionStart(const VarDecl &D, raw_ostream &) = 0;
+  virtual void mangleRegisteredSequenceSectionEnd(const VarDecl &D, raw_ostream &) = 0;
+  virtual void mangleRegisteredSequenceRoot(const VarDecl &D, raw_ostream &) = 0;
+  virtual void mangleRegisteredSequenceNode(const VarDecl &D, raw_ostream &) = 0;
+  virtual void mangleRegisteredSequenceInit(const VarDecl &D, raw_ostream &) = 0;
+
   /// @}
 };
 
