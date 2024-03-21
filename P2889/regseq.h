@@ -13,6 +13,8 @@ struct __regseq
 	struct __regseq_ptr* tail;
 };
 
+typedef struct __regseq regseq_root_t[1];
+
 typedef struct __regseq const* regseq_t;
 typedef struct __regseq_ptr const* regseq_ptr_t;
 
