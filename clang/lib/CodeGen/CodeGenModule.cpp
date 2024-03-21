@@ -5513,7 +5513,9 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
   // P2889: Emit registered sequence definition.
   if (auto *RDA = D->getAttr<RegisterAttr>()) {
     assert(getLangOpts().CPlusPlus && "Not yet implemented for C");
-    getCXXABI().emitRegisteredSequenceElement(*RDA->getVarDecl(), *D, GV);
+    const VarDecl &RegSeqDecl = *RDA->getVarDecl();
+    getCXXABI().emitRegisteredSequence(RegSeqDecl);
+    getCXXABI().emitRegisteredSequenceElement(RegSeqDecl, *D, GV);
   }
 }
 
