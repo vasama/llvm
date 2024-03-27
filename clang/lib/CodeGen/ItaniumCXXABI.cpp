@@ -446,7 +446,7 @@ private:
   llvm::StructType *getRegisteredSequenceNodeType();
   llvm::FunctionCallee getRegisteredSequenceLink();
 
-  llvm::GlobalVariable *emitRegisteredSequenceRoot(const VarDecl &D);
+  llvm::GlobalValue *emitRegisteredSequenceRoot(const VarDecl &D);
   llvm::GlobalVariable *emitRegisteredSequenceNode(const VarDecl &D,
                                                    llvm::StringRef Name,
                                                    llvm::Constant *Start,
@@ -5145,8 +5145,9 @@ llvm::StructType *ItaniumCXXABI::getRegisteredSequenceRootType() {
 llvm::StructType *ItaniumCXXABI::getRegisteredSequenceNodeType() {
   if (!RegisteredSequenceNodeType) {
     llvm::Type *RT = getRegisteredSequenceRootType();
+    llvm::Type *PRT = llvm::PointerType::get(RT, 0);
     llvm::Type *PV = llvm::PointerType::getUnqual(CGM.getLLVMContext());
-    RegisteredSequenceNodeType = llvm::StructType::get(RT, PV, PV);
+    RegisteredSequenceNodeType = llvm::StructType::get(PRT, PV, PV);
   }
   return RegisteredSequenceNodeType;
 }
@@ -5163,7 +5164,13 @@ llvm::FunctionCallee ItaniumCXXABI::getRegisteredSequenceLink() {
   return RegisteredSequenceLink;
 }
 
-llvm::GlobalVariable *ItaniumCXXABI::emitRegisteredSequenceRoot(const VarDecl &D) {
+llvm::GlobalValue *ItaniumCXXABI::emitRegisteredSequenceRoot(const VarDecl &D) {
+  llvm::StructType *RootTy = getRegisteredSequenceRootType();
+
+  return llvm::cast<llvm::GlobalValue>(
+      CGM.GetAddrOfGlobalVar(&D, RootTy, ForDefinition_t(false)));
+
+#if 0
   llvm::GlobalVariable *&Root = RegisteredSequences[&D].Root;
   if (Root)
     return Root;
@@ -5190,6 +5197,7 @@ llvm::GlobalVariable *ItaniumCXXABI::emitRegisteredSequenceRoot(const VarDecl &D
   Root->setInitializer(llvm::ConstantStruct::get(RootTy, Root, Root));
 
   return Root;
+#endif
 }
 
 llvm::GlobalVariable *ItaniumCXXABI::emitRegisteredSequenceNode(
@@ -5200,7 +5208,8 @@ llvm::GlobalVariable *ItaniumCXXABI::emitRegisteredSequenceNode(
   llvm::StructType *NodeTy = getRegisteredSequenceNodeType();
 
   llvm::Constant *Init = llvm::ConstantStruct::get(
-    NodeTy, llvm::ConstantAggregateZero::get(RootTy), Start, End);
+      NodeTy, llvm::ConstantPointerNull::get(llvm::PointerType::get(RootTy, 0)),
+      Start, End);
 
   llvm::GlobalVariable *Node = new llvm::GlobalVariable(
       CGM.getModule(), NodeTy,
@@ -5295,7 +5304,7 @@ void ItaniumCXXABI::emitRegisteredSequenceHiddenNode(
 }
 
 llvm::Constant *ItaniumCXXABI::emitRegisteredSequence(const VarDecl &D) {
-  llvm::GlobalVariable *Root = emitRegisteredSequenceRoot(D);
+  llvm::GlobalValue *Root = emitRegisteredSequenceRoot(D);
   //TODO: Definition
   return Root;
 }
@@ -5304,7 +5313,7 @@ llvm::Constant *ItaniumCXXABI::emitRegisteredSequence(const VarDecl &D) {
 //             Emit root as empty and set weak.
 //             On emit hidden node, init root and set strong.
 void ItaniumCXXABI::emitRegisteredSequenceElement(const VarDecl &D, const VarDecl &ED, llvm::GlobalVariable *EV) {
-  llvm::GlobalVariable *Root = emitRegisteredSequenceRoot(D);
+  llvm::GlobalValue *Root = emitRegisteredSequenceRoot(D);
 
   if (EV->hasSection() || EV->hasImplicitSection() ||
       Root->hasDefaultVisibility() && EV->hasLinkOnceLinkage()) {

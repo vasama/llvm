@@ -101,20 +101,6 @@ class registered_sequence
 				return __i;
 			}
 
-#if 0
-			iterator& operator--()
-			{
-				__ptr = ::regseq_prev(__ptr);
-			}
-
-			iterator operator--(int)
-			{
-				iterator __i = *this;
-				__ptr = ::regseq_prev(__ptr);
-				return __i;
-			}
-#endif
-
 			[[nodiscard]] friend bool operator==(iterator const& __l, iterator const& __r)
 			{
 				return __l.__ptr == __r.__ptr;
@@ -140,9 +126,6 @@ public:
 	class iterator
 	{
 		::regseq_ptr_t __ptr;
-#if 0
-		_Ty* __beg;
-#endif
 		_Ty* __pos;
 		_Ty* __end;
 
@@ -151,9 +134,6 @@ public:
 
 		explicit iterator(::regseq_ptr_t __ptr, _Ty* __beg, _Ty* __pos, _Ty* __end)
 			: __ptr(__ptr)
-#if 0
-			, __beg(__beg)
-#endif
 			, __pos(__pos)
 			, __end(__end)
 		{
@@ -173,17 +153,20 @@ public:
 
 		iterator& operator++()
 		{
-#if 1
-			_Ty* __beg;
-#endif
-
 			++__pos;
 			if (__pos == __end)
 			{
 				__ptr = regseq_next(__ptr);
-				__beg = reinterpret_cast<_Ty*>(regseq_data(__ptr));
-				__end = __beg + regseq_size(__ptr) / sizeof(_Ty);
-				__pos = __beg;
+				if (__ptr)
+				{
+					__pos = reinterpret_cast<_Ty*>(regseq_data(__ptr));
+					__end = __pos + regseq_size(__ptr) / sizeof(_Ty);
+				}
+				else
+				{
+					__pos = nullptr;
+					__end = nullptr;
+				}
 			}
 			return *this;
 		}
@@ -195,42 +178,16 @@ public:
 			return __i;
 		}
 
-#if 0
-		iterator& operator--()
-		{
-			if (__pos == __beg)
-			{
-				__ptr = regseq_prev(__ptr);
-				__beg = reinterpret_cast<_Ty*>(regseq_data(__ptr));
-				__end = __beg + regseq_size(__ptr) / sizeof(_Ty);
-				__pos = __end;
-			}
-			--__pos;
-			return *this;
-		}
-
-		iterator& operator--(int)
-		{
-			iterator __i = *this;
-			--__i;
-			return __i;
-		}
-#endif
-
 		[[nodiscard]] friend bool operator==(iterator const& __l, iterator const& __r)
 		{
 			return __l.__ptr == __r.__ptr && __l.__pos == __r.__pos;
 		}
 	};
 
-#if 0
-	registered_sequence() = delete;
-#else
 	consteval registered_sequence()
 		: __seq{}
 	{
 	}
-#endif
 
 	registered_sequence(registered_sequence const&) = delete;
 	registered_sequence& operator=(registered_sequence const&) = delete;
@@ -264,11 +221,7 @@ public:
 private:
 	::regseq_t __get_seq() const
 	{
-#if 1
 		return &__seq;
-#else
-		return reinterpret_cast<::regseq_t>(const_cast<void*>(static_cast<void const*>(this)));
-#endif
 	}
 };
 

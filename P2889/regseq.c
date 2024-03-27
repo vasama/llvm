@@ -2,24 +2,10 @@
 
 #include <assert.h>
 
-/*
-hidden symbol foo.__regseq_data.beg
-symbol object bar
-symbol object baz
-hidden symbol foo.__regseq_data.end
-
-hidden symbol object foo.__regseq_ptr
-inline symbol object foo.__regseq
-*/
-
-#if 0
-// One __regseq object is emitted per sequence.
-// Duplicate definitions from other shared objects are discarded.
-struct __regseq
-{
-	struct __regseq_ptr* head;
-	struct __regseq_ptr* tail;
-};
+#if 1
+#define __regseq_printf(...)
+#else
+#define __regseq_printf __builtin_printf
 #endif
 
 // One __regseq_ptr object is emitted per subsequence (TU/ELF/program).
@@ -41,7 +27,7 @@ struct __regseq_ptr
 // Calls to __regseq_link on the same __regseq object are externally synchronized.
 void __regseq_link(struct __regseq* const root, struct __regseq_ptr* const node)
 {
-	__builtin_printf("__regseq_link(%p, %p)\n", root, node);
+	__regseq_printf("__regseq_link(%p, %p)\n", root, node);
 
 	node->next = NULL;
 
@@ -56,8 +42,8 @@ void __regseq_link(struct __regseq* const root, struct __regseq_ptr* const node)
 
 	root->tail = node;
 
-	__builtin_printf("__regseq_link root->head=%p\n", root->head);
-	__builtin_printf("__regseq_link root->tail=%p\n", root->tail);
+	__regseq_printf("__regseq_link root->head=%p\n", root->head);
+	__regseq_printf("__regseq_link root->tail=%p\n", root->tail);
 }
 
 
@@ -65,13 +51,13 @@ regseq_ptr_t regseq_begin(regseq_t const seq)
 {
 	assert(seq);
 
-	__builtin_printf("regseq_begin(%p)\n", seq);
-	__builtin_printf("regseq_begin seq->head=%p\n", seq->head);
+	__regseq_printf("regseq_begin(%p)\n", seq);
+	__regseq_printf("regseq_begin seq->head=%p\n", seq->head);
 
 	struct __regseq_ptr* const head = __atomic_load_n(
 		&seq->head,
 		__ATOMIC_ACQUIRE);
-	__builtin_printf("regseq_begin head=%p\n", seq->head);
+	__regseq_printf("regseq_begin head=%p\n", seq->head);
 
 	return head;
 }

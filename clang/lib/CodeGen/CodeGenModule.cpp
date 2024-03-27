@@ -5663,7 +5663,7 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
   if (auto *RDA = D->getAttr<RegisterAttr>()) {
     assert(getLangOpts().CPlusPlus && "Not yet implemented for C");
     const VarDecl &RegSeqDecl = *RDA->getVarDecl();
-    getCXXABI().emitRegisteredSequence(RegSeqDecl);
+    //getCXXABI().emitRegisteredSequence(RegSeqDecl);
     getCXXABI().emitRegisteredSequenceElement(RegSeqDecl, *D, GV);
   }
 }
