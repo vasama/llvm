@@ -181,9 +181,18 @@ public:
 			if (__pos == __end)
 			{
 				__ptr = regseq_next(__ptr);
-				__beg = reinterpret_cast<_Ty*>(regseq_data(__ptr));
-				__end = __beg + regseq_size(__ptr) / sizeof(_Ty);
-				__pos = __beg;
+				if (__ptr)
+				{
+					__beg = reinterpret_cast<_Ty*>(regseq_data(__ptr));
+					__end = __beg + regseq_size(__ptr) / sizeof(_Ty);
+					__pos = __beg;
+				}
+				else
+				{
+					__beg = nullptr;
+					__pos = nullptr;
+					__end = nullptr;
+				}
 			}
 			return *this;
 		}

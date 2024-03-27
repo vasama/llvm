@@ -2,6 +2,12 @@
 
 #include <assert.h>
 
+#if 1
+#define __regseq_printf(...)
+#else
+#define __regseq_printf __builtin_printf
+#endif
+
 /*
 hidden symbol foo.__regseq_data.beg
 symbol object bar
@@ -41,7 +47,7 @@ struct __regseq_ptr
 // Calls to __regseq_link on the same __regseq object are externally synchronized.
 void __regseq_link(struct __regseq* const root, struct __regseq_ptr* const node)
 {
-	__builtin_printf("__regseq_link(%p, %p)\n", root, node);
+	__regseq_printf("__regseq_link(%p, %p)\n", root, node);
 
 	node->next = NULL;
 
@@ -56,8 +62,8 @@ void __regseq_link(struct __regseq* const root, struct __regseq_ptr* const node)
 
 	root->tail = node;
 
-	__builtin_printf("__regseq_link root->head=%p\n", root->head);
-	__builtin_printf("__regseq_link root->tail=%p\n", root->tail);
+	__regseq_printf("__regseq_link root->head=%p\n", root->head);
+	__regseq_printf("__regseq_link root->tail=%p\n", root->tail);
 }
 
 
@@ -65,13 +71,13 @@ regseq_ptr_t regseq_begin(regseq_t const seq)
 {
 	assert(seq);
 
-	__builtin_printf("regseq_begin(%p)\n", seq);
-	__builtin_printf("regseq_begin seq->head=%p\n", seq->head);
+	__regseq_printf("regseq_begin(%p)\n", seq);
+	__regseq_printf("regseq_begin seq->head=%p\n", seq->head);
 
 	struct __regseq_ptr* const head = __atomic_load_n(
 		&seq->head,
 		__ATOMIC_ACQUIRE);
-	__builtin_printf("regseq_begin head=%p\n", seq->head);
+	__regseq_printf("regseq_begin head=%p\n", seq->head);
 
 	return head;
 }
