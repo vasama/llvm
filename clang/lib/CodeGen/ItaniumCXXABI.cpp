@@ -5166,7 +5166,6 @@ llvm::FunctionCallee ItaniumCXXABI::getRegisteredSequenceLink() {
 
 llvm::GlobalValue *ItaniumCXXABI::emitRegisteredSequenceRoot(const VarDecl &D) {
   llvm::StructType *RootTy = getRegisteredSequenceRootType();
-
   return llvm::cast<llvm::GlobalValue>(
       CGM.GetAddrOfGlobalVar(&D, RootTy, ForDefinition_t(false)));
 
