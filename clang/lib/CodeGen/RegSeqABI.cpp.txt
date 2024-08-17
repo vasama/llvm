@@ -1,0 +1,222 @@
+#include "CodeGenModule.h"
+#include "llvm/IR/GlobalValue.h"
+
+using namespace clang;
+using namespace CodeGen;
+
+static llvm::StructType *getRegisteredSequenceRootType() {
+  llvm::StructType *RegisteredSequenceRootType = nullptr;
+  if (!RegisteredSequenceRootType) {
+    llvm::StructType *T = llvm::StructType::create(CGM.getLLVMContext());
+    llvm::Type *P = llvm::PointerType::getUnqual(T);
+    T->setBody(P, P);
+    RegisteredSequenceRootType = T;
+  }
+  return RegisteredSequenceRootType;
+}
+
+static llvm::StructType *getRegisteredSequenceNodeType() {
+  llvm::StructType *RegisteredSequenceNodeType = nullptr;
+  if (!RegisteredSequenceNodeType) {
+    llvm::Type *RT = getRegisteredSequenceRootType();
+    llvm::Type *PRT = llvm::PointerType::get(RT, 0);
+    llvm::Type *PV = llvm::PointerType::getUnqual(CGM.getLLVMContext());
+    RegisteredSequenceNodeType = llvm::StructType::get(PRT, PV, PV);
+  }
+  return RegisteredSequenceNodeType;
+}
+
+static llvm::FunctionCallee getRegisteredSequenceLink() {
+  llvm::FunctionCallee RegisteredSequenceLink = {};
+  if (!RegisteredSequenceLink) {
+    llvm::Type *Args[] = {
+      llvm::PointerType::get(getRegisteredSequenceRootType(), 0),
+      llvm::PointerType::get(getRegisteredSequenceNodeType(), 0),
+    };
+    RegisteredSequenceLink = CGM.CreateRuntimeFunction(
+      llvm::FunctionType::get(CGM.VoidTy, Args), "__regseq_link");
+  }
+  return RegisteredSequenceLink;
+}
+
+static llvm::GlobalValue *emitRegisteredSequenceRoot(const VarDecl &D) {
+  llvm::StructType *RootTy = getRegisteredSequenceRootType();
+
+  return llvm::cast<llvm::GlobalValue>(
+      CGM.GetAddrOfGlobalVar(&D, RootTy, ForDefinition_t(false)));
+
+#if 0
+  llvm::GlobalVariable *&Root = RegisteredSequences[&D].Root;
+  if (Root)
+    return Root;
+
+  llvm::StructType *RootTy = getRegisteredSequenceRootType();
+
+  SmallString<256> RootName;
+  {
+    llvm::raw_svector_ostream Out(RootName);
+    getMangleContext().mangleRegisteredSequenceRoot(D, Out);
+  }
+
+  Root = new llvm::GlobalVariable(
+    CGM.getModule(),
+    RootTy,
+    /*isConstant=*/false,
+    llvm::GlobalValue::LinkOnceAnyLinkage,
+    nullptr,
+    RootName);
+
+  Root->setVisibility(CGM.GetLLVMVisibility(D.getVisibility()));
+
+  // By default, initialize the list to empty.
+  Root->setInitializer(llvm::ConstantStruct::get(RootTy, Root, Root));
+
+  return Root;
+#endif
+}
+
+llvm::GlobalVariable *ItaniumCXXABI::emitRegisteredSequenceNode(
+    const VarDecl &D, llvm::StringRef NodeName, llvm::Constant *Start, llvm::Constant *End) {
+  llvm::Constant *Root = emitRegisteredSequenceRoot(D);
+
+  llvm::StructType *RootTy = getRegisteredSequenceRootType();
+  llvm::StructType *NodeTy = getRegisteredSequenceNodeType();
+
+  llvm::Constant *Init = llvm::ConstantStruct::get(
+      NodeTy, llvm::ConstantPointerNull::get(llvm::PointerType::get(RootTy, 0)),
+      Start, End);
+
+  llvm::GlobalVariable *Node = new llvm::GlobalVariable(
+      CGM.getModule(), NodeTy,
+      /*isConstant=*/false, llvm::GlobalValue::LinkOnceAnyLinkage, Init,
+      NodeName);
+
+  llvm::SmallString<256> FnName;
+  if (getLangOpts().CPlusPlus()) {
+    llvm::raw_svector_ostream Out(FnName);
+    getMangleContext().mangleRegisteredSequenceInit(D, Out);
+  } else {
+    FnName = llvm::Twine(Root->getName()) + ".regseq_init";
+  }
+
+  llvm::FunctionType *FTy = llvm::FunctionType::get(CGM.VoidTy, false);
+  const CGFunctionInfo &FI = CGM.getTypes().arrangeNullaryFunction();
+
+  llvm::Function *Fn = CGM.CreateGlobalInitOrCleanUpFunction(
+    FTy, FnName, FI, D.getLocation());
+
+  // Emit function
+  {
+    CodeGenFunction CGF(CGM);
+    CGF.StartFunction(GlobalDecl(&D, DynamicInitKind::Initializer),
+                      CGM.getContext().VoidTy, Fn, FI, FunctionArgList());
+    CGF.EmitNounwindRuntimeCall(getRegisteredSequenceLink(), { Root, Node });
+    CGF.FinishFunction();
+  }
+
+  //TODO: P2889: Look deeper into the global ctor comdat.
+  CGM.AddGlobalCtor(Fn, 90, ~0U, CGM.supportsCOMDAT() ? Root : nullptr);
+
+  return Node;
+}
+
+void ItaniumCXXABI::emitRegisteredSequenceHiddenNode(
+  const VarDecl &D, llvm::GlobalVariable *GV) {
+  llvm::GlobalVariable *&Node = RegisteredSequences[&D].HiddenNode;
+
+  llvm::Type *ArrayType = llvm::ArrayType::get(CGM.CharTy, 0);
+
+  if (!Node) {
+    llvm::GlobalVariable *Start = nullptr;
+    {
+      llvm::SmallString<256> StartName;
+      if (getLangOpts().CPlusPlus()) {
+        llvm::raw_svector_ostream Out(StartName);
+        getMangleContext().mangleRegisteredSequenceSectionStart(D, Out);
+      } else {
+        StartName = llvm::Twine(D.getName()) + ".regseq_start";
+      }
+
+      Start = new llvm::GlobalVariable(
+        CGM.getModule(),
+        ArrayType,
+        /*isConstant=*/false,
+        llvm::GlobalValue::ExternalLinkage,
+        nullptr,
+        StartName);
+    }
+
+    llvm::GlobalVariable *End = nullptr;
+    {
+      llvm::SmallString<256> EndName;
+      if (getLangOpts().CPlusPlus()) {
+        llvm::raw_svector_ostream Out(EndName);
+        getMangleContext().mangleRegisteredSequenceSectionEnd(D, Out);
+      } else {
+        EndName = llvm::Twine(D.getName()) + ".regseq_end"
+      }
+
+      End = new llvm::GlobalVariable(
+        CGM.getModule(),
+        ArrayType,
+        /*isConstant=*/false,
+        llvm::GlobalValue::ExternalLinkage,
+        nullptr,
+        EndName);
+    }
+
+    llvm::SmallString<256> NodeName;
+    if (getLangOpts().CPlusPlus()) {
+      llvm::raw_svector_ostream Out(NodeName);
+      getMangleContext().mangleRegisteredSequenceNode(D, Out);
+    } else {
+      NodeName = llvm::Twine(D.getName()) + ".regseq";
+    }
+
+    Node = emitRegisteredSequenceNode(D, NodeName, Start, End);
+    Node->setVisibility(llvm::GlobalValue::HiddenVisibility);
+  }
+
+  llvm::SmallString<256> SectionName;
+  if (getLangOpts().CPlusPlus()) {
+    llvm::raw_svector_ostream Out(SectionName);
+    getMangleContext().mangleRegisteredSequenceSection(D, Out);
+  } else {
+    SectionName = llvm::Twine(D.getName()) + ".regseq_section";
+  }
+  GV->setSection(SectionName);
+}
+
+llvm::Constant *ItaniumCXXABI::emitRegisteredSequence(const VarDecl &D) {
+  llvm::GlobalValue *Root = emitRegisteredSequenceRoot(D);
+  //TODO: Definition
+  return Root;
+}
+
+void CodeGenModule::emitRegisteredSequence(const VarDecl &D) {
+
+}
+
+void CodeGenModule::emitRegisteredSequenceElement(
+  const VarDecl &D, const VarDecl &ED, llvm::GlobalVariable *EV) {
+  llvm::GlobalValue *Root = emitRegisteredSequenceRoot(D);
+
+  if (EV->hasSection() || EV->hasImplicitSection() ||
+      Root->hasDefaultVisibility() && EV->hasLinkOnceLinkage()) {
+
+    llvm::SmallString<256> NodeName;
+    if (getLangOpts().CPlusPlus()) {
+      llvm::raw_svector_ostream Out(NodeName);
+      getMangleContext().mangleRegisteredSequenceNode(ED, Out);
+    } else {
+      NodeName = llvm::Twine(EV->getName()) + ".regseq";
+    }
+
+    llvm::Constant *OnePastEV = llvm::ConstantExpr::getInBoundsGetElementPtr(
+      EV->getValueType(), EV, llvm::ConstantInt::get(CGM.IntTy, 1));
+
+    emitRegisteredSequenceNode(D, NodeName, EV, OnePastEV);
+  } else {
+    emitRegisteredSequenceHiddenNode(D, EV);
+  }
+}

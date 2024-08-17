@@ -103,6 +103,7 @@ add_clang_library(clangCodeGen
   CodeGenTypes.cpp
   ConstantInitBuilder.cpp
   CoverageMappingGen.cpp
+  GNURegSeqABI.cpp
   ItaniumCXXABI.cpp
   LinkInModulesPass.cpp
   MacroPPCallbacks.cpp

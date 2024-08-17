@@ -22,6 +22,7 @@
 #include "CGOpenCLRuntime.h"
 #include "CGOpenMPRuntime.h"
 #include "CGOpenMPRuntimeGPU.h"
+#include "CGRegSeqABI.h"
 #include "CodeGenFunction.h"
 #include "CodeGenPGO.h"
 #include "ConstantEmitter.h"
@@ -102,6 +103,11 @@ static CGCXXABI *createCXXABI(CodeGenModule &CGM) {
   }
 
   llvm_unreachable("invalid C++ ABI kind");
+}
+
+static CGRegSeqABI *createRegSeqABI(CodeGenModule &CGM) {
+  //TODO: P2889: Windows
+  return createGNURegSeqABI(CGM);
 }
 
 static std::unique_ptr<TargetCodeGenInfo>
@@ -339,6 +345,7 @@ CodeGenModule::CodeGenModule(ASTContext &C,
     : Context(C), LangOpts(C.getLangOpts()), FS(FS), HeaderSearchOpts(HSO),
       PreprocessorOpts(PPO), CodeGenOpts(CGO), TheModule(M), Diags(diags),
       Target(C.getTargetInfo()), ABI(createCXXABI(*this)),
+      RegSeqABI(createRegSeqABI(*this)),
       VMContext(M.getContext()), Types(*this), VTables(*this),
       SanitizerMD(new SanitizerMetadata(*this)) {
 

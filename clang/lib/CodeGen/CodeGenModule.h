@@ -93,6 +93,7 @@ class CGOpenCLRuntime;
 class CGOpenMPRuntime;
 class CGCUDARuntime;
 class CGHLSLRuntime;
+class CGRegSeqABI;
 class CoverageMappingModuleGen;
 class TargetCodeGenInfo;
 
@@ -310,6 +311,7 @@ private:
   DiagnosticsEngine &Diags;
   const TargetInfo &Target;
   std::unique_ptr<CGCXXABI> ABI;
+  std::unique_ptr<CGRegSeqABI> RegSeqABI;
   llvm::LLVMContext &VMContext;
   std::string ModuleNameHash;
   bool CXX20ModuleInits = false;
@@ -1771,6 +1773,9 @@ private:
 
   llvm::Metadata *CreateMetadataIdentifierImpl(QualType T, MetadataTypeMap &Map,
                                                StringRef Suffix);
+
+  void emitRegisteredSequence(const VarDecl &D);
+  void emitRegisteredSequenceElement(const VarDecl &D, const VarDecl &ED, llvm::GlobalVariable *EV);
 };
 
 }  // end namespace CodeGen
