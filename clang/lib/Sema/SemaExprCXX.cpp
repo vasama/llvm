@@ -1919,6 +1919,14 @@ static bool doesUsualArrayDeleteWantSize(Sema &S, SourceLocation loc,
   return Best && Best.HasSizeT;
 }
 
+static bool doesPlacementDeleteWantSize(const FunctionDecl *OperatorDelete,
+                                        const MultiExprArg &PlacementArgs) {
+  if (OperatorDelete->param_size() == PlacementArgs.size() + 1)
+    return false;
+
+  return OperatorDelete->parameters()[1]->getType()->isSizeValT();
+}
+
 ExprResult
 Sema::ActOnCXXNew(SourceLocation StartLoc, bool UseGlobal,
                   SourceLocation PlacementLParen, MultiExprArg PlacementArgs,
@@ -2350,6 +2358,11 @@ ExprResult Sema::BuildCXXNew(SourceRange Range, bool UseGlobal,
     UsualArrayDeleteWantsSize =
         doesUsualArrayDeleteWantSize(*this, StartLoc, AllocType);
 
+  bool PlacementDeleteWantsSize = false;
+  if (OperatorDelete && !PlacementArgs.empty())
+    PlacementDeleteWantsSize =
+        doesPlacementDeleteWantSize(OperatorDelete, PlacementArgs);
+
   SmallVector<Expr *, 8> AllPlaceArgs;
   if (OperatorNew) {
     auto *Proto = OperatorNew->getType()->castAs<FunctionProtoType>();
@@ -2524,9 +2537,9 @@ ExprResult Sema::BuildCXXNew(SourceRange Range, bool UseGlobal,
 
   return CXXNewExpr::Create(Context, UseGlobal, OperatorNew, OperatorDelete,
                             PassAlignment, UsualArrayDeleteWantsSize,
-                            PlacementArgs, TypeIdParens, ArraySize, InitStyle,
-                            Initializer, ResultType, AllocTypeInfo, Range,
-                            DirectInitRange);
+                            PlacementDeleteWantsSize, PlacementArgs,
+                            TypeIdParens, ArraySize, InitStyle, Initializer,
+                            ResultType, AllocTypeInfo, Range, DirectInitRange);
 }
 
 bool Sema::CheckAllocatedType(QualType AllocType, SourceLocation Loc,
@@ -2868,8 +2881,6 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
 
   FoundDelete.suppressDiagnostics();
 
-  SmallVector<std::pair<DeclAccessPair,FunctionDecl*>, 2> Matches;
-
   // Whether we're looking for a placement operator delete is dictated
   // by whether we selected a placement operator new, not by whether
   // we had explicit placement arguments.  This matters for things like
@@ -2886,137 +2897,158 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
   bool isPlacementNew = !PlaceArgs.empty() || OperatorNew->param_size() != 1 ||
                         OperatorNew->isVariadic();
 
-  if (isPlacementNew) {
+  for (int TrySizeVal = (int)isPlacementNew; TrySizeVal >= 0; --TrySizeVal) {
+    SmallVector<std::pair<DeclAccessPair,FunctionDecl*>, 2> Matches;
+
+    if (isPlacementNew) {
+      // C++ [expr.new]p20:
+      //   A declaration of a placement deallocation function matches the
+      //   declaration of a placement allocation function if it has the
+      //   same number of parameters and, after parameter transformations
+      //   (8.3.5), all parameter types except the first are
+      //   identical. [...]
+      //
+      // To perform this comparison, we compute the function type that
+      // the deallocation function should have, and use that type both
+      // for template argument deduction and for comparison purposes.
+      QualType ExpectedFunctionType;
+      {
+        auto *Proto = OperatorNew->getType()->castAs<FunctionProtoType>();
+
+        SmallVector<QualType, 4> ArgTypes;
+        ArgTypes.push_back(Context.VoidPtrTy);
+        if (TrySizeVal)
+          ArgTypes.push_back(getASTContext().getEnumType(getStdSizeValT()));
+        for (unsigned I = 1, N = Proto->getNumParams(); I < N; ++I)
+          ArgTypes.push_back(Proto->getParamType(I));
+
+        FunctionProtoType::ExtProtoInfo EPI;
+        // FIXME: This is not part of the standard's rule.
+        EPI.Variadic = Proto->isVariadic();
+
+        ExpectedFunctionType
+          = Context.getFunctionType(Context.VoidTy, ArgTypes, EPI);
+      }
+
+      for (LookupResult::iterator D = FoundDelete.begin(),
+                               DEnd = FoundDelete.end();
+           D != DEnd; ++D) {
+        FunctionDecl *Fn = nullptr;
+        if (FunctionTemplateDecl *FnTmpl =
+                dyn_cast<FunctionTemplateDecl>((*D)->getUnderlyingDecl())) {
+          // Perform template argument deduction to try to match the
+          // expected function type.
+          TemplateDeductionInfo Info(StartLoc);
+          if (DeduceTemplateArguments(FnTmpl, nullptr, ExpectedFunctionType, Fn,
+                                      Info) != TemplateDeductionResult::Success)
+            continue;
+
+          // P3492-TODO: Reject a match with dependent size_val_t parameter.
+          if (TrySizeVal && Fn->parameters()[1]->getType()->isDependentType())
+            continue;
+        } else
+          Fn = cast<FunctionDecl>((*D)->getUnderlyingDecl());
+
+        if (Context.hasSameType(adjustCCAndNoReturn(Fn->getType(),
+                                                    ExpectedFunctionType,
+                                                    /*AdjustExcpetionSpec*/true),
+                                ExpectedFunctionType))
+          Matches.push_back(std::make_pair(D.getPair(), Fn));
+      }
+
+      if (getLangOpts().CUDA)
+        CUDA().EraseUnwantedMatches(getCurFunctionDecl(/*AllowLambda=*/true),
+                                    Matches);
+    } else {
+      // C++1y [expr.new]p22:
+      //   For a non-placement allocation function, the normal deallocation
+      //   function lookup is used
+      //
+      // Per [expr.delete]p10, this lookup prefers a member operator delete
+      // without a size_t argument, but prefers a non-member operator delete
+      // with a size_t where possible (which it always is in this case).
+      llvm::SmallVector<UsualDeallocFnInfo, 4> BestDeallocFns;
+      UsualDeallocFnInfo Selected = resolveDeallocationOverload(
+          *this, FoundDelete, /*WantSize*/ FoundGlobalDelete,
+          /*WantAlign*/ hasNewExtendedAlignment(*this, AllocElemType),
+          &BestDeallocFns);
+      if (Selected)
+        Matches.push_back(std::make_pair(Selected.Found, Selected.FD));
+      else {
+        // If we failed to select an operator, all remaining functions are viable
+        // but ambiguous.
+        for (auto Fn : BestDeallocFns)
+          Matches.push_back(std::make_pair(Fn.Found, Fn.FD));
+      }
+    }
+
     // C++ [expr.new]p20:
-    //   A declaration of a placement deallocation function matches the
-    //   declaration of a placement allocation function if it has the
-    //   same number of parameters and, after parameter transformations
-    //   (8.3.5), all parameter types except the first are
-    //   identical. [...]
-    //
-    // To perform this comparison, we compute the function type that
-    // the deallocation function should have, and use that type both
-    // for template argument deduction and for comparison purposes.
-    QualType ExpectedFunctionType;
-    {
-      auto *Proto = OperatorNew->getType()->castAs<FunctionProtoType>();
+    //   [...] If the lookup finds a single matching deallocation
+    //   function, that function will be called; otherwise, no
+    //   deallocation function will be called.
+    if (Matches.size() == 1) {
+      OperatorDelete = Matches[0].second;
 
-      SmallVector<QualType, 4> ArgTypes;
-      ArgTypes.push_back(Context.VoidPtrTy);
-      for (unsigned I = 1, N = Proto->getNumParams(); I < N; ++I)
-        ArgTypes.push_back(Proto->getParamType(I));
+      // C++1z [expr.new]p23:
+      //   If the lookup finds a usual deallocation function (3.7.4.2)
+      //   with a parameter of type std::size_t and that function, considered
+      //   as a placement deallocation function, would have been
+      //   selected as a match for the allocation function, the program
+      //   is ill-formed.
+      if (getLangOpts().CPlusPlus11 && isPlacementNew &&
+          isNonPlacementDeallocationFunction(*this, OperatorDelete)) {
+        UsualDeallocFnInfo Info(*this,
+                                DeclAccessPair::make(OperatorDelete, AS_public));
+        // Core issue, per mail to core reflector, 2016-10-09:
+        //   If this is a member operator delete, and there is a corresponding
+        //   non-sized member operator delete, this isn't /really/ a sized
+        //   deallocation function, it just happens to have a size_t parameter.
+        bool IsSizedDelete = Info.HasSizeT;
+        if (IsSizedDelete && !FoundGlobalDelete) {
+          auto NonSizedDelete =
+              resolveDeallocationOverload(*this, FoundDelete, /*WantSize*/false,
+                                          /*WantAlign*/Info.HasAlignValT);
+          if (NonSizedDelete && !NonSizedDelete.HasSizeT &&
+              NonSizedDelete.HasAlignValT == Info.HasAlignValT)
+            IsSizedDelete = false;
+        }
 
-      FunctionProtoType::ExtProtoInfo EPI;
-      // FIXME: This is not part of the standard's rule.
-      EPI.Variadic = Proto->isVariadic();
-
-      ExpectedFunctionType
-        = Context.getFunctionType(Context.VoidTy, ArgTypes, EPI);
-    }
-
-    for (LookupResult::iterator D = FoundDelete.begin(),
-                             DEnd = FoundDelete.end();
-         D != DEnd; ++D) {
-      FunctionDecl *Fn = nullptr;
-      if (FunctionTemplateDecl *FnTmpl =
-              dyn_cast<FunctionTemplateDecl>((*D)->getUnderlyingDecl())) {
-        // Perform template argument deduction to try to match the
-        // expected function type.
-        TemplateDeductionInfo Info(StartLoc);
-        if (DeduceTemplateArguments(FnTmpl, nullptr, ExpectedFunctionType, Fn,
-                                    Info) != TemplateDeductionResult::Success)
-          continue;
-      } else
-        Fn = cast<FunctionDecl>((*D)->getUnderlyingDecl());
-
-      if (Context.hasSameType(adjustCCAndNoReturn(Fn->getType(),
-                                                  ExpectedFunctionType,
-                                                  /*AdjustExcpetionSpec*/true),
-                              ExpectedFunctionType))
-        Matches.push_back(std::make_pair(D.getPair(), Fn));
-    }
-
-    if (getLangOpts().CUDA)
-      CUDA().EraseUnwantedMatches(getCurFunctionDecl(/*AllowLambda=*/true),
-                                  Matches);
-  } else {
-    // C++1y [expr.new]p22:
-    //   For a non-placement allocation function, the normal deallocation
-    //   function lookup is used
-    //
-    // Per [expr.delete]p10, this lookup prefers a member operator delete
-    // without a size_t argument, but prefers a non-member operator delete
-    // with a size_t where possible (which it always is in this case).
-    llvm::SmallVector<UsualDeallocFnInfo, 4> BestDeallocFns;
-    UsualDeallocFnInfo Selected = resolveDeallocationOverload(
-        *this, FoundDelete, /*WantSize*/ FoundGlobalDelete,
-        /*WantAlign*/ hasNewExtendedAlignment(*this, AllocElemType),
-        &BestDeallocFns);
-    if (Selected)
-      Matches.push_back(std::make_pair(Selected.Found, Selected.FD));
-    else {
-      // If we failed to select an operator, all remaining functions are viable
-      // but ambiguous.
-      for (auto Fn : BestDeallocFns)
-        Matches.push_back(std::make_pair(Fn.Found, Fn.FD));
-    }
-  }
-
-  // C++ [expr.new]p20:
-  //   [...] If the lookup finds a single matching deallocation
-  //   function, that function will be called; otherwise, no
-  //   deallocation function will be called.
-  if (Matches.size() == 1) {
-    OperatorDelete = Matches[0].second;
-
-    // C++1z [expr.new]p23:
-    //   If the lookup finds a usual deallocation function (3.7.4.2)
-    //   with a parameter of type std::size_t and that function, considered
-    //   as a placement deallocation function, would have been
-    //   selected as a match for the allocation function, the program
-    //   is ill-formed.
-    if (getLangOpts().CPlusPlus11 && isPlacementNew &&
-        isNonPlacementDeallocationFunction(*this, OperatorDelete)) {
-      UsualDeallocFnInfo Info(*this,
-                              DeclAccessPair::make(OperatorDelete, AS_public));
-      // Core issue, per mail to core reflector, 2016-10-09:
-      //   If this is a member operator delete, and there is a corresponding
-      //   non-sized member operator delete, this isn't /really/ a sized
-      //   deallocation function, it just happens to have a size_t parameter.
-      bool IsSizedDelete = Info.HasSizeT;
-      if (IsSizedDelete && !FoundGlobalDelete) {
-        auto NonSizedDelete =
-            resolveDeallocationOverload(*this, FoundDelete, /*WantSize*/false,
-                                        /*WantAlign*/Info.HasAlignValT);
-        if (NonSizedDelete && !NonSizedDelete.HasSizeT &&
-            NonSizedDelete.HasAlignValT == Info.HasAlignValT)
-          IsSizedDelete = false;
+        if (IsSizedDelete) {
+          SourceRange R = PlaceArgs.empty()
+                              ? SourceRange()
+                              : SourceRange(PlaceArgs.front()->getBeginLoc(),
+                                            PlaceArgs.back()->getEndLoc());
+          Diag(StartLoc, diag::err_placement_new_non_placement_delete) << R;
+          if (!OperatorDelete->isImplicit())
+            Diag(OperatorDelete->getLocation(), diag::note_previous_decl)
+                << DeleteName;
+        }
       }
 
-      if (IsSizedDelete) {
-        SourceRange R = PlaceArgs.empty()
-                            ? SourceRange()
-                            : SourceRange(PlaceArgs.front()->getBeginLoc(),
-                                          PlaceArgs.back()->getEndLoc());
-        Diag(StartLoc, diag::err_placement_new_non_placement_delete) << R;
-        if (!OperatorDelete->isImplicit())
-          Diag(OperatorDelete->getLocation(), diag::note_previous_decl)
-              << DeleteName;
-      }
+      CheckAllocationAccess(StartLoc, Range, FoundDelete.getNamingClass(),
+                            Matches[0].first);
+
+      break;
     }
 
-    CheckAllocationAccess(StartLoc, Range, FoundDelete.getNamingClass(),
-                          Matches[0].first);
-  } else if (!Matches.empty()) {
-    // We found multiple suitable operators. Per [expr.new]p20, that means we
-    // call no 'operator delete' function, but we should at least warn the user.
-    // FIXME: Suppress this warning if the construction cannot throw.
-    Diag(StartLoc, diag::warn_ambiguous_suitable_delete_function_found)
-      << DeleteName << AllocElemType;
+    if (!Matches.empty()) {
+      // We found multiple suitable operators. Per [expr.new]p20, that means we
+      // call no 'operator delete' function, but we should at least warn the user.
+      diag::kind DiagId = diag::warn_ambiguous_suitable_delete_function_found;
 
-    for (auto &Match : Matches)
-      Diag(Match.second->getLocation(),
-           diag::note_member_declared_here) << DeleteName;
+      // P3492: Ambiguous operator with a size_val_t parameter is ill-formed.
+      if (TrySizeVal)
+        DiagId = diag::err_ambiguous_suitable_sized_delete_function_found;
+
+      // FIXME: Suppress this warning if the construction cannot throw.
+      Diag(StartLoc, DiagId) << DeleteName << AllocElemType;
+
+      for (auto &Match : Matches)
+        Diag(Match.second->getLocation(),
+             diag::note_member_declared_here) << DeleteName;
+
+      break;
+    }
   }
 
   return false;
@@ -3106,6 +3138,27 @@ void Sema::DeclareGlobalNewDelete() {
     AlignValT->setImplicit(true);
 
     StdAlignValT = AlignValT;
+  }
+  if (!StdSizeValT) {
+    // The "std::size_val_t" enum class has not yet been declared, so build it
+    // implicitly.
+    auto *SizeValT = EnumDecl::Create(
+        Context, getOrCreateStdNamespace(), SourceLocation(), SourceLocation(),
+        &PP.getIdentifierTable().get("size_val_t"), nullptr, true, true, true);
+
+    // The implicitly declared "std::size_val_t" should live in global module
+    // fragment.
+    if (TheGlobalModuleFragment) {
+      SizeValT->setModuleOwnershipKind(
+          Decl::ModuleOwnershipKind::ReachableWhenImported);
+      SizeValT->setLocalOwningModule(TheGlobalModuleFragment);
+    }
+
+    SizeValT->setIntegerType(Context.getSizeType());
+    SizeValT->setPromotionType(Context.getSizeType());
+    SizeValT->setImplicit(true);
+
+    StdSizeValT = SizeValT;
   }
 
   GlobalNewDeleteDeclared = true;

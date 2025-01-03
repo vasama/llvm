@@ -4778,6 +4778,7 @@ public:
 
   CXXRecordDecl *getStdBadAlloc() const;
   EnumDecl *getStdAlignValT() const;
+  EnumDecl *getStdSizeValT() const;
 
   ValueDecl *tryLookupUnambiguousFieldDecl(RecordDecl *ClassDecl,
                                            const IdentifierInfo *MemberOrBase);
@@ -7957,6 +7958,10 @@ public:
   /// The C++ "std::align_val_t" enum class, which is defined by the C++
   /// standard library.
   LazyDeclPtr StdAlignValT;
+
+  /// The P3492 "std::size_val_t" enum class, which is defined by the C++
+  /// standard library.
+  LazyDeclPtr StdSizeValT;
 
   /// The C++ "type_info" declaration, which is defined in \<typeinfo>.
   RecordDecl *CXXTypeInfoDecl;

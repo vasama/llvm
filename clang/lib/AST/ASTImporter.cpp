@@ -8325,9 +8325,9 @@ ExpectedStmt ASTNodeImporter::VisitCXXNewExpr(CXXNewExpr *E) {
   return CXXNewExpr::Create(
       Importer.getToContext(), E->isGlobalNew(), ToOperatorNew,
       ToOperatorDelete, E->passAlignment(), E->doesUsualArrayDeleteWantSize(),
-      ToPlacementArgs, ToTypeIdParens, ToArraySize, E->getInitializationStyle(),
-      ToInitializer, ToType, ToAllocatedTypeSourceInfo, ToSourceRange,
-      ToDirectInitRange);
+      E->doesPlacementDeleteWantSize(), ToPlacementArgs, ToTypeIdParens,
+      ToArraySize, E->getInitializationStyle(), ToInitializer, ToType,
+      ToAllocatedTypeSourceInfo, ToSourceRange, ToDirectInitRange);
 }
 
 ExpectedStmt ASTNodeImporter::VisitCXXDeleteExpr(CXXDeleteExpr *E) {

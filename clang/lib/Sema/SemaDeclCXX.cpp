@@ -11728,6 +11728,10 @@ EnumDecl *Sema::getStdAlignValT() const {
   return cast_or_null<EnumDecl>(StdAlignValT.get(Context.getExternalSource()));
 }
 
+EnumDecl *Sema::getStdSizeValT() const {
+  return cast_or_null<EnumDecl>(StdSizeValT.get(Context.getExternalSource()));
+}
+
 NamespaceDecl *Sema::getStdNamespace() const {
   return cast_or_null<NamespaceDecl>(
                                  StdNamespace.get(Context.getExternalSource()));

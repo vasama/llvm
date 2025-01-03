@@ -8118,6 +8118,8 @@ def warn_ambiguous_suitable_delete_function_found : Warning<
   "multiple suitable %0 functions for %1; no 'operator delete' function "
   "will be invoked if initialization throws an exception">,
   InGroup<DiagGroup<"ambiguous-delete">>;
+def err_ambiguous_suitable_sized_delete_function_found : Error<
+  "multiple suitable %0 functions for %1; no 'operator delete' function">;
 def note_member_declared_here : Note<
   "member %0 declared here">;
 def note_member_first_declared_here : Note<

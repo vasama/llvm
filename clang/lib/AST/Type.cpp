@@ -3121,6 +3121,15 @@ bool Type::isAlignValT() const {
   return false;
 }
 
+bool Type::isSizeValT() const {
+  if (const auto *ET = getAs<EnumType>()) {
+    IdentifierInfo *II = ET->getDecl()->getIdentifier();
+    if (II && II->isStr("size_val_t") && ET->getDecl()->isInStdNamespace())
+      return true;
+  }
+  return false;
+}
+
 bool Type::isStdByteType() const {
   if (const auto *ET = getAs<EnumType>()) {
     IdentifierInfo *II = ET->getDecl()->getIdentifier();

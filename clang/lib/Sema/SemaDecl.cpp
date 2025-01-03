@@ -17276,6 +17276,7 @@ Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK, SourceLocation KWLoc,
   DeclContext *DC = CurContext;
   bool isStdBadAlloc = false;
   bool isStdAlignValT = false;
+  bool isStdSizeValT = false;
 
   RedeclarationKind Redecl = forRedeclarationInCurContext();
   if (TUK == TagUseKind::Friend || TUK == TagUseKind::Reference)
@@ -17508,6 +17509,10 @@ Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK, SourceLocation KWLoc,
       isStdAlignValT = true;
       if (Previous.empty() && StdAlignValT)
         Previous.addDecl(getStdAlignValT());
+    } else if (Name->isStr("size_val_t")) {
+      isStdSizeValT = true;
+      if (Previous.empty() && StdSizeValT)
+        Previous.addDecl(getStdSizeValT());
     }
   }
 
@@ -17909,6 +17914,8 @@ CreateNewDecl:
 
     if (isStdAlignValT && (!StdAlignValT || getStdAlignValT()->isImplicit()))
       StdAlignValT = cast<EnumDecl>(New);
+    if (isStdSizeValT && (!StdSizeValT || getStdSizeValT()->isImplicit()))
+      StdSizeValT = cast<EnumDecl>(New);
 
     // If this is an undefined enum, warn.
     if (TUK != TagUseKind::Definition && !Invalid) {

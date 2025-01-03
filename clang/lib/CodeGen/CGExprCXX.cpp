@@ -1432,9 +1432,11 @@ namespace {
       QualType ArgType;
     };
 
-    unsigned NumPlacementArgs : 31;
+    unsigned NumPlacementArgs : 30;
     LLVM_PREFERRED_TYPE(bool)
     unsigned PassAlignmentToPlacementDelete : 1;
+    LLVM_PREFERRED_TYPE(bool)
+    unsigned PassSizeToPlacementDelete : 1;
     const FunctionDecl *OperatorDelete;
     ValueTy Ptr;
     ValueTy AllocSize;
@@ -1452,9 +1454,10 @@ namespace {
     CallDeleteDuringNew(size_t NumPlacementArgs,
                         const FunctionDecl *OperatorDelete, ValueTy Ptr,
                         ValueTy AllocSize, bool PassAlignmentToPlacementDelete,
-                        CharUnits AllocAlign)
+                        bool PassSizeToPlacementDelete, CharUnits AllocAlign)
       : NumPlacementArgs(NumPlacementArgs),
         PassAlignmentToPlacementDelete(PassAlignmentToPlacementDelete),
+        PassSizeToPlacementDelete(PassSizeToPlacementDelete),
         OperatorDelete(OperatorDelete), Ptr(Ptr), AllocSize(AllocSize),
         AllocAlign(AllocAlign) {}
 
@@ -1477,6 +1480,8 @@ namespace {
         // A placement deallocation function is implicitly passed an alignment
         // if the placement allocation function was, but is never passed a size.
         Params.Alignment = PassAlignmentToPlacementDelete;
+
+        Params.Size = PassSizeToPlacementDelete;
       } else {
         // For a non-placement new-expression, 'operator delete' can take a
         // size and/or an alignment if it has the right parameters.
@@ -1536,7 +1541,8 @@ static void EnterNewDeleteCleanup(CodeGenFunction &CGF,
 
     DirectCleanup *Cleanup = CGF.EHStack.pushCleanupWithExtra<DirectCleanup>(
         EHCleanup, E->getNumPlacementArgs(), E->getOperatorDelete(),
-        NewPtr.emitRawPointer(CGF), AllocSize, E->passAlignment(), AllocAlign);
+        NewPtr.emitRawPointer(CGF), AllocSize, E->passAlignment(),
+        E->doesPlacementDeleteWantSize(), AllocAlign);
     for (unsigned I = 0, N = E->getNumPlacementArgs(); I != N; ++I) {
       auto &Arg = NewArgs[I + NumNonPlacementArgs];
       Cleanup->setPlacementArg(I, Arg.getRValue(CGF), Arg.Ty);
@@ -1567,6 +1573,7 @@ static void EnterNewDeleteCleanup(CodeGenFunction &CGF,
                                               SavedNewPtr,
                                               SavedAllocSize,
                                               E->passAlignment(),
+                                              E->doesPlacementDeleteWantSize(),
                                               AllocAlign);
   for (unsigned I = 0, N = E->getNumPlacementArgs(); I != N; ++I) {
     auto &Arg = NewArgs[I + NumNonPlacementArgs];

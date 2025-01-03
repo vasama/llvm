@@ -228,6 +228,7 @@ SourceLocation CXXScalarValueInitExpr::getBeginLoc() const {
 CXXNewExpr::CXXNewExpr(bool IsGlobalNew, FunctionDecl *OperatorNew,
                        FunctionDecl *OperatorDelete, bool ShouldPassAlignment,
                        bool UsualArrayDeleteWantsSize,
+                       bool PlacementDeleteWantsSize,
                        ArrayRef<Expr *> PlacementArgs, SourceRange TypeIdParens,
                        std::optional<Expr *> ArraySize,
                        CXXNewInitializationStyle InitializationStyle,
@@ -247,6 +248,7 @@ CXXNewExpr::CXXNewExpr(bool IsGlobalNew, FunctionDecl *OperatorNew,
   CXXNewExprBits.IsArray = ArraySize.has_value();
   CXXNewExprBits.ShouldPassAlignment = ShouldPassAlignment;
   CXXNewExprBits.UsualArrayDeleteWantsSize = UsualArrayDeleteWantsSize;
+  CXXNewExprBits.PlacementDeleteWantsSize = PlacementDeleteWantsSize;
   CXXNewExprBits.HasInitializer = Initializer != nullptr;
   CXXNewExprBits.StoredInitializationStyle =
       llvm::to_underlying(InitializationStyle);
@@ -291,8 +293,9 @@ CXXNewExpr::CXXNewExpr(EmptyShell Empty, bool IsArray,
 CXXNewExpr *CXXNewExpr::Create(
     const ASTContext &Ctx, bool IsGlobalNew, FunctionDecl *OperatorNew,
     FunctionDecl *OperatorDelete, bool ShouldPassAlignment,
-    bool UsualArrayDeleteWantsSize, ArrayRef<Expr *> PlacementArgs,
-    SourceRange TypeIdParens, std::optional<Expr *> ArraySize,
+    bool UsualArrayDeleteWantsSize, bool PlacementDeleteWantsSize,
+    ArrayRef<Expr *> PlacementArgs, SourceRange TypeIdParens,
+    std::optional<Expr *> ArraySize,
     CXXNewInitializationStyle InitializationStyle, Expr *Initializer,
     QualType Ty, TypeSourceInfo *AllocatedTypeInfo, SourceRange Range,
     SourceRange DirectInitRange) {
@@ -306,9 +309,9 @@ CXXNewExpr *CXXNewExpr::Create(
                    alignof(CXXNewExpr));
   return new (Mem)
       CXXNewExpr(IsGlobalNew, OperatorNew, OperatorDelete, ShouldPassAlignment,
-                 UsualArrayDeleteWantsSize, PlacementArgs, TypeIdParens,
-                 ArraySize, InitializationStyle, Initializer, Ty,
-                 AllocatedTypeInfo, Range, DirectInitRange);
+                 UsualArrayDeleteWantsSize, PlacementDeleteWantsSize,
+                 PlacementArgs, TypeIdParens, ArraySize, InitializationStyle,
+                 Initializer, Ty, AllocatedTypeInfo, Range, DirectInitRange);
 }
 
 CXXNewExpr *CXXNewExpr::CreateEmpty(const ASTContext &Ctx, bool IsArray,

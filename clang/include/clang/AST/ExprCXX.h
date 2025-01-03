@@ -2290,8 +2290,9 @@ class CXXNewExpr final
   /// Build a c++ new expression.
   CXXNewExpr(bool IsGlobalNew, FunctionDecl *OperatorNew,
              FunctionDecl *OperatorDelete, bool ShouldPassAlignment,
-             bool UsualArrayDeleteWantsSize, ArrayRef<Expr *> PlacementArgs,
-             SourceRange TypeIdParens, std::optional<Expr *> ArraySize,
+             bool UsualArrayDeleteWantsSize, bool PlacementDeleteWantsSize,
+             ArrayRef<Expr *> PlacementArgs, SourceRange TypeIdParens,
+             std::optional<Expr *> ArraySize,
              CXXNewInitializationStyle InitializationStyle, Expr *Initializer,
              QualType Ty, TypeSourceInfo *AllocatedTypeInfo, SourceRange Range,
              SourceRange DirectInitRange);
@@ -2305,8 +2306,9 @@ public:
   static CXXNewExpr *
   Create(const ASTContext &Ctx, bool IsGlobalNew, FunctionDecl *OperatorNew,
          FunctionDecl *OperatorDelete, bool ShouldPassAlignment,
-         bool UsualArrayDeleteWantsSize, ArrayRef<Expr *> PlacementArgs,
-         SourceRange TypeIdParens, std::optional<Expr *> ArraySize,
+         bool UsualArrayDeleteWantsSize, bool PlacementDeleteWantsSize,
+         ArrayRef<Expr *> PlacementArgs, SourceRange TypeIdParens,
+         std::optional<Expr *> ArraySize,
          CXXNewInitializationStyle InitializationStyle, Expr *Initializer,
          QualType Ty, TypeSourceInfo *AllocatedTypeInfo, SourceRange Range,
          SourceRange DirectInitRange);
@@ -2436,6 +2438,10 @@ public:
   /// parameter.
   bool doesUsualArrayDeleteWantSize() const {
     return CXXNewExprBits.UsualArrayDeleteWantsSize;
+  }
+
+  bool doesPlacementDeleteWantSize() const {
+    return CXXNewExprBits.PlacementDeleteWantsSize;
   }
 
   using arg_iterator = ExprIterator;

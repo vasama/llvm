@@ -896,6 +896,9 @@ protected:
     LLVM_PREFERRED_TYPE(bool)
     unsigned UsualArrayDeleteWantsSize : 1;
 
+    LLVM_PREFERRED_TYPE(bool)
+    unsigned PlacementDeleteWantsSize : 1;
+
     // Is initializer expr present?
     LLVM_PREFERRED_TYPE(bool)
     unsigned HasInitializer : 1;
