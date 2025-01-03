@@ -745,6 +745,9 @@ void USRGenerator::VisitType(QualType T) {
           Out << 'Q'; break;
         case BuiltinType::NullPtr:
           Out << 'n'; break;
+        // P2986
+        case BuiltinType::FuncPtr:
+          Out << "__P2986"; break;
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
         case BuiltinType::Id: \
           Out << "@BT@" << #Suffix << "_" << #ImgType; break;

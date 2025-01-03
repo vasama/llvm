@@ -1016,6 +1016,7 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
   case TST_char8:
   case TST_char16:
   case TST_char32:
+  case TST_funcptr: // P2986
   case TST_int:
   case TST_int128:
   case TST_half:

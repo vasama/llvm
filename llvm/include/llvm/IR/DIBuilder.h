@@ -219,6 +219,10 @@ namespace llvm {
     /// Create C++11 nullptr type.
     DIBasicType *createNullPtrType();
 
+    // P2986
+    /// Create P2986 _Funcptr type.
+    DIBasicType *createFuncPtrType();
+
     /// Create debugging information entry for a basic
     /// type.
     /// \param Name        Type name.

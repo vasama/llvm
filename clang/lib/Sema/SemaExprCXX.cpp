@@ -7273,9 +7273,9 @@ QualType Sema::FindCompositePointerType(SourceLocation Loc,
   //   where at least one is a pointer or pointer to member type or
   //   std::nullptr_t is:
   bool T1IsPointerLike = T1->isAnyPointerType() || T1->isMemberPointerType() ||
-                         T1->isNullPtrType();
+                         T1->isNullPtrType() || T1->isFuncPtrType();
   bool T2IsPointerLike = T2->isAnyPointerType() || T2->isMemberPointerType() ||
-                         T2->isNullPtrType();
+                         T2->isNullPtrType() || T2->isFuncPtrType();
   if (!T1IsPointerLike && !T2IsPointerLike)
     return QualType();
 
@@ -7299,6 +7299,14 @@ QualType Sema::FindCompositePointerType(SourceLocation Loc,
                                          ? CK_NullToMemberPointer
                                          : CK_NullToPointer).get();
     return T2;
+  }
+
+  if (T1->isFuncPtrType() || T2->isFuncPtrType()) {
+    if (!T1->isFuncPtrType() && !T1->isFunctionPointerType())
+      return QualType();
+    if (!T2->isFuncPtrType() && !T2->isFunctionPointerType())
+      return QualType();
+    return T1;
   }
 
   // Now both have to be pointers or member pointers.

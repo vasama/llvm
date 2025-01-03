@@ -2624,6 +2624,7 @@ public:
   bool isTemplateTypeParmType() const;          // C++ template type parameter
   bool isNullPtrType() const;                   // C++11 std::nullptr_t or
                                                 // C23   nullptr_t
+  bool isFuncPtrType() const;                   // P2986
   bool isNothrowT() const;                      // C++   std::nothrow_t
   bool isAlignValT() const;                     // C++17 std::align_val_t
   bool isStdByteType() const;                   // C++17 std::byte
@@ -8544,6 +8545,11 @@ inline bool Type::isNullPtrType() const {
   return isSpecificBuiltinType(BuiltinType::NullPtr);
 }
 
+// P2986
+inline bool Type::isFuncPtrType() const {
+  return isSpecificBuiltinType(BuiltinType::FuncPtr);
+}
+
 bool IsEnumDeclComplete(EnumDecl *);
 bool IsEnumDeclScoped(EnumDecl *);
 
@@ -8609,7 +8615,7 @@ inline bool Type::isUnsignedFixedPointType() const {
 inline bool Type::isScalarType() const {
   if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() > BuiltinType::Void &&
-           BT->getKind() <= BuiltinType::NullPtr;
+           BT->getKind() <= BuiltinType::FuncPtr;
   if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType))
     // Enums are scalar types, but only if they are defined.  Incomplete enums
     // are not treated as scalar types.
@@ -8671,7 +8677,7 @@ inline bool Type::canDecayToPointerType() const {
 
 inline bool Type::hasPointerRepresentation() const {
   return (isPointerType() || isReferenceType() || isBlockPointerType() ||
-          isObjCObjectPointerType() || isNullPtrType());
+          isObjCObjectPointerType() || isNullPtrType() || isFuncPtrType());
 }
 
 inline bool Type::hasObjCPointerRepresentation() const {

@@ -1637,6 +1637,7 @@ ExprResult Parser::ParseCastExpression(CastParseKind ParseKind,
   case tok::kw_typename:
   case tok::kw_typeof:
   case tok::kw___vector:
+  case tok::kw__Funcptr: // P2986
   case tok::kw__Accum:
   case tok::kw__Fract:
   case tok::kw__Sat:

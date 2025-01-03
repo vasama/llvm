@@ -1494,6 +1494,9 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
   // nullptr type (C++0x 2.14.7)
   InitBuiltinType(NullPtrTy,           BuiltinType::NullPtr);
 
+  // P2986
+  InitBuiltinType(FuncPtrTy, BuiltinType::FuncPtr);
+
   // half type (OpenCL 6.1.1.1) / ARM NEON __fp16
   InitBuiltinType(HalfTy, BuiltinType::Half);
 
@@ -2225,6 +2228,10 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
       Width = Target->getPointerWidth(LangAS::Default);
       Align = Target->getPointerAlign(LangAS::Default);
       break;
+    // P2986
+    case BuiltinType::FuncPtr:
+      Width = Target->getPointerWidth(LangAS::Default);
+      Align = Target->getPointerWidth(LangAS::Default);
     case BuiltinType::ObjCId:
     case BuiltinType::ObjCClass:
     case BuiltinType::ObjCSel:
@@ -3398,6 +3405,7 @@ static void encodeTypeForFunctionPointerAuth(const ASTContext &Ctx,
     case BuiltinType::ObjCClass:
     case BuiltinType::ObjCSel:
     case BuiltinType::NullPtr:
+    case BuiltinType::FuncPtr: // P2986
       OS << "P";
       return;
 
@@ -8663,6 +8671,7 @@ static char getObjCEncodingForPrimitiveType(const ASTContext *C,
     case BuiltinType::Double:     return 'd';
     case BuiltinType::LongDouble: return 'D';
     case BuiltinType::NullPtr:    return '*'; // like char*
+    case BuiltinType::FuncPtr:    return '*'; // P2986
 
     case BuiltinType::BFloat16:
     case BuiltinType::Float16:
@@ -13163,6 +13172,8 @@ ASTContext::ObjCMethodsAreEqual(const ObjCMethodDecl *MethodDecl,
 uint64_t ASTContext::getTargetNullPointerValue(QualType QT) const {
   LangAS AS;
   if (QT->getUnqualifiedDesugaredType()->isNullPtrType())
+    AS = LangAS::Default;
+  else if (QT->getUnqualifiedDesugaredType()->isFuncPtrType())
     AS = LangAS::Default;
   else
     AS = QT->getPointeeType().getAddressSpace();

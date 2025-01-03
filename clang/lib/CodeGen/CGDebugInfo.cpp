@@ -708,6 +708,9 @@ llvm::DIType *CGDebugInfo::CreateType(const BuiltinType *BT) {
     llvm_unreachable("Unexpected builtin type");
   case BuiltinType::NullPtr:
     return DBuilder.createNullPtrType();
+  // P2986
+  case BuiltinType::FuncPtr:
+    return DBuilder.createFuncPtrType();
   case BuiltinType::Void:
     return nullptr;
   case BuiltinType::ObjCClass:

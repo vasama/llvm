@@ -4611,6 +4611,11 @@ void Parser::ParseDeclarationSpecifiers(
       isInvalid = DS.SetTypeSpecType(DeclSpec::TST_char32, Loc, PrevSpec,
                                      DiagID, Policy);
       break;
+    // P2986
+    case tok::kw__Funcptr:
+      isInvalid = DS.SetTypeSpecType(DeclSpec::TST_funcptr, Loc, PrevSpec,
+                                     DiagID, Policy);
+      break;
     case tok::kw_bool:
       if (getLangOpts().C23)
         Diag(Tok, diag::warn_c23_compat_keyword) << Tok.getName();
@@ -5844,6 +5849,7 @@ bool Parser::isKnownToBeTypeSpecifier(const Token &Tok) const {
   case tok::kw__Decimal64:
   case tok::kw__Decimal128:
   case tok::kw___vector:
+  case tok::kw__Funcptr: // P2986
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case tok::kw_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
 #define HLSL_INTANGIBLE_TYPE(Name, Id, SingletonId) case tok::kw_##Name:
@@ -5930,6 +5936,7 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw__Decimal64:
   case tok::kw__Decimal128:
   case tok::kw___vector:
+  case tok::kw__Funcptr: // P2986
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case tok::kw_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
 #define HLSL_INTANGIBLE_TYPE(Name, Id, SingletonId) case tok::kw_##Name:
@@ -6154,6 +6161,7 @@ bool Parser::isDeclarationSpecifier(
   case tok::kw__Decimal64:
   case tok::kw__Decimal128:
   case tok::kw___vector:
+  case tok::kw__Funcptr: // P2986
 
     // struct-or-union-specifier (C99) or class-specifier (C++)
   case tok::kw_class:

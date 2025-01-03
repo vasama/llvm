@@ -950,6 +950,10 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
            "Unknown TSS value");
     Result = Context.Char32Ty;
     break;
+  // P2986
+  case DeclSpec::TST_funcptr:
+    Result = Context.FuncPtrTy;
+    break;
   case DeclSpec::TST_unspecified:
     // If this is a missing declspec in a block literal return context, then it
     // is inferred from the return statements inside the block.

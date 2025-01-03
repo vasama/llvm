@@ -10948,7 +10948,8 @@ static void DiagnoseNullConversion(Sema &S, Expr *E, QualType T,
 
   // Return if target type is a safe conversion.
   if (T->isAnyPointerType() || T->isBlockPointerType() ||
-      T->isMemberPointerType() || !T->isScalarType() || T->isNullPtrType())
+      T->isMemberPointerType() || !T->isScalarType() || T->isNullPtrType() ||
+      T->isFuncPtrType())
     return;
 
   SourceLocation Loc = E->getSourceRange().getBegin();

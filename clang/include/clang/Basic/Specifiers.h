@@ -60,6 +60,7 @@ namespace clang {
     TST_char8,  // C++20 char8_t (proposed)
     TST_char16, // C++11 char16_t
     TST_char32, // C++11 char32_t
+    TST_funcptr, // P2986
     TST_int,
     TST_int128,
     TST_bitint,  // Bit-precise integer types.

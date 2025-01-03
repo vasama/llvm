@@ -3434,6 +3434,9 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
     return "char32_t";
   case NullPtr:
     return Policy.NullptrTypeInNamespace ? "std::nullptr_t" : "nullptr_t";
+  // P2986
+  case FuncPtr:
+    return "_Funcptr";
   case Overload:
     return "<overloaded function type>";
   case BoundMember:
@@ -4875,6 +4878,9 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
     case BuiltinType::OMPArrayShaping:
     case BuiltinType::OMPIterator:
       return false;
+    // P2986
+    case BuiltinType::FuncPtr:
+      return true;
     }
     llvm_unreachable("unknown builtin type");
 

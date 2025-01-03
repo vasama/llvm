@@ -683,10 +683,10 @@ CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType,
 
   if (!DestType->isReferenceType()) {
     assert((SrcType->isAnyPointerType() || SrcType->isMemberPointerType() ||
-            SrcType->isBlockPointerType()) &&
+            SrcType->isBlockPointerType() || SrcType->isFuncPtrType()) &&
            "Source type is not pointer or pointer to member.");
     assert((DestType->isAnyPointerType() || DestType->isMemberPointerType() ||
-            DestType->isBlockPointerType()) &&
+            DestType->isBlockPointerType() || DestType->isFuncPtrType()) &&
            "Destination type is not pointer or pointer to member.");
   }
 
@@ -1442,6 +1442,12 @@ static TryCastResult TryStaticCast(Sema &Self, ExprResult &SrcExpr,
                                      OpRange, msg, Kind, BasePath);
   if (tcr != TC_NotApplicable)
     return tcr;
+
+  // P2986
+  if (SrcType->isFuncPtrType() && DestType->isFunctionPointerType()) {
+    Kind = CK_BitCast; // P2986-TODO
+    return TC_Success;
+  }
 
   // Reverse pointer conversion to void*. C++ 4.10.p2 specifies conversion to
   // void*. C++ 5.2.9p10 specifies additional restrictions, which really is
@@ -2459,9 +2465,11 @@ static TryCastResult TryReinterpretCast(Sema &Self, ExprResult &SrcExpr,
   }
 
   bool destIsPtr = DestType->isAnyPointerType() ||
-                   DestType->isBlockPointerType();
+                   DestType->isBlockPointerType() ||
+                   DestType->isFuncPtrType();
   bool srcIsPtr = SrcType->isAnyPointerType() ||
-                  SrcType->isBlockPointerType();
+                  SrcType->isBlockPointerType() ||
+                  SrcType->isFuncPtrType();
   if (!destIsPtr && !srcIsPtr) {
     // Except for std::nullptr_t->integer and lvalue->reference, which are
     // handled above, at least one of the two arguments must be a pointer.
@@ -2556,8 +2564,8 @@ static TryCastResult TryReinterpretCast(Sema &Self, ExprResult &SrcExpr,
   // Not casting away constness, so the only remaining check is for compatible
   // pointer categories.
 
-  if (SrcType->isFunctionPointerType()) {
-    if (DestType->isFunctionPointerType()) {
+  if (SrcType->isFunctionPointerType() || SrcType->isFuncPtrType()) {
+    if (DestType->isFunctionPointerType() || DestType->isFuncPtrType()) {
       // C++ 5.2.10p6: A pointer to a function can be explicitly converted to
       // a pointer to a function of a different type.
       return SuccessResult;
@@ -2576,7 +2584,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, ExprResult &SrcExpr,
     return SuccessResult;
   }
 
-  if (DestType->isFunctionPointerType()) {
+  if (DestType->isFunctionPointerType() || DestType->isFuncPtrType()) {
     // See above.
     Self.Diag(OpRange.getBegin(),
               Self.getLangOpts().CPlusPlus11 ?

@@ -483,6 +483,13 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
       ResultType = llvm::PointerType::getUnqual(getLLVMContext());
       break;
 
+    // P2986
+    case BuiltinType::FuncPtr:
+      ResultType = llvm::PointerType::get(getLLVMContext(),
+                                          getDataLayout()
+                                            .getProgramAddressSpace());
+      break;
+
     case BuiltinType::UInt128:
     case BuiltinType::Int128:
       ResultType = llvm::IntegerType::get(getLLVMContext(), 128);

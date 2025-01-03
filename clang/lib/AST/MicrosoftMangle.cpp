@@ -2774,6 +2774,10 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T, Qualifiers,
   case BuiltinType::NullPtr:
     Out << "$$T";
     break;
+  // P2986
+  case BuiltinType::FuncPtr:
+    Out << "__P2986";
+    break;
 
   case BuiltinType::Float16:
     mangleArtificialTagType(TagTypeKind::Struct, "_Float16", {"__clang"});

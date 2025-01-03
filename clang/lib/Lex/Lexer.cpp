@@ -111,6 +111,7 @@ bool Token::isSimpleTypeSpecifier(const LangOptions &LangOpts) const {
   case tok::kw_typeof:
   case tok::kw_decltype:
   case tok::kw_char8_t:
+  case tok::kw__Funcptr: // P2986
     return getIdentifierInfo()->isKeyword(LangOpts);
 
   default:

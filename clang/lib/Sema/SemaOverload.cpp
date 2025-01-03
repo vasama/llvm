@@ -2842,7 +2842,7 @@ bool Sema::IsPointerConversion(Expr *From, QualType FromType, QualType ToType,
   }
 
   // Blocks: Block pointers can be converted to void*.
-  if (FromType->isBlockPointerType() && ToType->isPointerType() &&
+  if (FromType->isBlockPointerType() && ToType->isPointerType() &&  
       ToType->castAs<PointerType>()->getPointeeType()->isVoidType()) {
     ConvertedType = ToType;
     return true;
@@ -2861,6 +2861,21 @@ bool Sema::IsPointerConversion(Expr *From, QualType FromType, QualType ToType,
       isNullPointerConstantForConversion(From, InOverloadResolution, Context)) {
     ConvertedType = ToType;
     return true;
+  }
+
+  // P2986
+  if (ToType->isFuncPtrType()) {
+    if (isNullPointerConstantForConversion(From, InOverloadResolution, Context)) {
+      ConvertedType = ToType;
+      return true;
+    }
+
+    if (FromType->isFunctionPointerType()) {
+      ConvertedType = ToType;
+      return true;
+    }
+
+    return false;
   }
 
   const PointerType* ToTypePtr = ToType->getAs<PointerType>();

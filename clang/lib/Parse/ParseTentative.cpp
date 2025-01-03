@@ -1784,6 +1784,7 @@ Parser::isCXXDeclarationSpecifier(ImplicitTypenameContext AllowImplicitTypename,
   case tok::kw_char8_t:
   case tok::kw_char16_t:
   case tok::kw_char32_t:
+  case tok::kw__Funcptr: // P2986
   case tok::kw_bool:
   case tok::kw_short:
   case tok::kw_int:
@@ -1910,6 +1911,7 @@ bool Parser::isCXXDeclarationSpecifierAType() {
   case tok::kw_char8_t:
   case tok::kw_char16_t:
   case tok::kw_char32_t:
+  case tok::kw__Funcptr: // P2986
   case tok::kw_bool:
   case tok::kw_short:
   case tok::kw_int:

@@ -11590,7 +11590,8 @@ static bool convertPointersToCompositeType(Sema &S, SourceLocation Loc,
   QualType LHSType = LHS.get()->getType();
   QualType RHSType = RHS.get()->getType();
   assert(LHSType->isPointerType() || RHSType->isPointerType() ||
-         LHSType->isMemberPointerType() || RHSType->isMemberPointerType());
+         LHSType->isMemberPointerType() || RHSType->isMemberPointerType() ||
+         LHSType->isFuncPtrType() || RHSType->isFuncPtrType());
 
   QualType T = S.FindCompositePointerType(Loc, LHS, RHS);
   if (T.isNull()) {
@@ -12298,8 +12299,9 @@ QualType Sema::CheckCompareOperands(ExprResult &LHS, ExprResult &RHS,
                                    LHS.get()->getSourceRange());
   }
 
-  if (IsOrdered && LHSType->isFunctionPointerType() &&
-      RHSType->isFunctionPointerType()) {
+  if (IsOrdered &&
+      (LHSType->isFunctionPointerType() || LHSType->isFuncPtrType()) &&
+      (RHSType->isFunctionPointerType() || RHSType->isFuncPtrType())) {
     // Valid unless a relational comparison of function pointers
     bool IsError = Opc == BO_Cmp;
     auto DiagID =
@@ -12338,6 +12340,10 @@ QualType Sema::CheckCompareOperands(ExprResult &LHS, ExprResult &RHS,
       return computeResultTy();
     }
 
+    auto IsAnyPointerAsInt = [](const QualType &T) {
+      return (int)(T->isPointerType() || T->isFuncPtrType());
+    };
+
     // C++ [expr.eq]p2:
     //   If at least one operand is a pointer [...] bring them to their
     //   composite pointer type.
@@ -12350,7 +12356,7 @@ QualType Sema::CheckCompareOperands(ExprResult &LHS, ExprResult &RHS,
     // For <=>, the only valid non-pointer types are arrays and functions, and
     // we already decayed those, so this is really the same as the relational
     // comparison rule.
-    if ((int)LHSType->isPointerType() + (int)RHSType->isPointerType() >=
+    if (IsAnyPointerAsInt(LHSType) + IsAnyPointerAsInt(RHSType) >=
             (IsOrdered ? 2 : 1) &&
         (!LangOpts.ObjCAutoRefCount || !(LHSType->isObjCObjectPointerType() ||
                                          RHSType->isObjCObjectPointerType()))) {
@@ -12431,6 +12437,17 @@ QualType Sema::CheckCompareOperands(ExprResult &LHS, ExprResult &RHS,
     }
     if (RHSType->isNullPtrType()) {
       LHS = ImpCastExprToType(LHS.get(), RHSType, CK_NullToPointer);
+      return computeResultTy();
+    }
+  }
+
+  if (!IsOrdered && (LHSIsNull || RHSIsNull)) {
+    if (LHSIsNull && RHSType->isFuncPtrType()) {
+      LHS = ImpCastExprToType(LHS.get(), RHSType, CK_NullToPointer);
+      return computeResultTy();
+    }
+    if (RHSIsNull && LHSType->isFuncPtrType()) {
+      RHS = ImpCastExprToType(RHS.get(), LHSType, CK_NullToPointer);
       return computeResultTy();
     }
   }

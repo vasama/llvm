@@ -177,6 +177,10 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   case BuiltinType::NullPtr:
     ID = PREDEF_TYPE_NULLPTR_ID;
     break;
+  // P2986
+  case BuiltinType::FuncPtr:
+    ID = PREDEF_TYPE_FUNCPTR_ID;
+    break;
   case BuiltinType::Char8:
     ID = PREDEF_TYPE_CHAR8_ID;
     break;

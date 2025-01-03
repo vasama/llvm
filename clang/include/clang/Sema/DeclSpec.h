@@ -282,6 +282,7 @@ public:
   static const TST TST_char8 = clang::TST_char8;
   static const TST TST_char16 = clang::TST_char16;
   static const TST TST_char32 = clang::TST_char32;
+  static const TST TST_funcptr = clang::TST_funcptr; // P2986
   static const TST TST_int = clang::TST_int;
   static const TST TST_int128 = clang::TST_int128;
   static const TST TST_bitint = clang::TST_bitint;

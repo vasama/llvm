@@ -397,6 +397,7 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
     // Fall through, if the impossible happens.
 
   case BuiltinType::NullPtr:
+  case BuiltinType::FuncPtr: // P2986
   case BuiltinType::Overload:
   case BuiltinType::Dependent:
   case BuiltinType::UnresolvedTemplate:

@@ -9498,7 +9498,7 @@ bool PointerExprEvaluator::VisitCastExpr(const CastExpr *E) {
     // Bitcasts to cv void* are static_casts, not reinterpret_casts, so are
     // permitted in constant expressions in C++11. Bitcasts from cv void* are
     // also static_casts, but we disallow them as a resolution to DR1312.
-    if (!E->getType()->isVoidPointerType()) {
+    if (!E->getType()->isVoidPointerType() && !E->getType()->isFuncPtrType()) {
       // In some circumstances, we permit casting from void* to cv1 T*, when the
       // actual pointee object is actually a cv2 T.
       bool HasValidResult = !Result.InvalidBase && !Result.Designator.Invalid &&
@@ -9506,8 +9506,9 @@ bool PointerExprEvaluator::VisitCastExpr(const CastExpr *E) {
       bool VoidPtrCastMaybeOK =
           Result.IsNullPtr ||
           (HasValidResult &&
-           Info.Ctx.hasSimilarType(Result.Designator.getType(Info.Ctx),
-                                   E->getType()->getPointeeType()));
+           (!E->getType()->isFuncPtrType() ||
+            Info.Ctx.hasSimilarType(Result.Designator.getType(Info.Ctx),
+                                    E->getType()->getPointeeType())));
       // 1. We'll allow it in std::allocator::allocate, and anything which that
       //    calls.
       // 2. HACK 2022-03-28: Work around an issue with libstdc++'s
@@ -12189,6 +12190,7 @@ GCCTypeClass EvaluateBuiltinClassifyType(QualType T,
       return GCCTypeClass::None;
 
     case BuiltinType::NullPtr:
+    case BuiltinType::FuncPtr: // P2986
 
     case BuiltinType::ObjCId:
     case BuiltinType::ObjCClass:
@@ -14257,7 +14259,8 @@ EvaluateComparisonBinaryOperator(EvalInfo &Info, const BinaryOperator *E,
     return Success(GetCmpRes(), E);
   }
 
-  if (LHSTy->isPointerType() && RHSTy->isPointerType()) {
+  if ((LHSTy->isPointerType() || LHSTy->isFuncPtrType()) &&
+      (RHSTy->isPointerType() || RHSTy->isFuncPtrType())) {
     LValue LHSValue, RHSValue;
 
     bool LHSOK = EvaluatePointer(E->getLHS(), LHSValue, Info);
@@ -14471,6 +14474,25 @@ EvaluateComparisonBinaryOperator(EvalInfo &Info, const BinaryOperator *E,
       return false;
     return Success(CmpResult::Equal, E);
   }
+
+#if 0
+  if (LHSTy->isFuncPtrType()) {
+      assert(!E->isRelationalOp() && "unexpected _Funcptr operation");
+      assert(RHSTy->isFuncPtrType() && "missing pointer conversion");
+
+      LValue LHSValue, RHSValue;
+      bool LHSOK = EvaluatePointer(E->getLHS(), LHSValue, Info);
+      if (!LHSOK && !Info.noteFailure())
+        return false;
+      if (!EvaluatePointer(E->getRHS(), RHSValue, Info) || !LHSOK)
+        return false;
+
+      auto Result = LHSValue.Base == RHSValue.Base
+          ? CmpResult::Equal
+          : CmpResult::Unequal;
+      return Success(Result, E);
+  }
+#endif
 
   return DoAfter();
 }

@@ -263,6 +263,11 @@ DIBasicType *DIBuilder::createNullPtrType() {
   return createUnspecifiedType("decltype(nullptr)");
 }
 
+// P2986
+DIBasicType *DIBuilder::createFuncPtrType() {
+  return createUnspecifiedType("_Funcptr");
+}
+
 DIBasicType *DIBuilder::createBasicType(StringRef Name, uint64_t SizeInBits,
                                         unsigned Encoding,
                                         DINode::DIFlags Flags,
