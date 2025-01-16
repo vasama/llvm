@@ -1921,7 +1921,7 @@ static bool doesUsualArrayDeleteWantSize(Sema &S, SourceLocation loc,
 
 static bool doesPlacementDeleteWantSize(const FunctionDecl *OperatorDelete,
                                         const MultiExprArg &PlacementArgs) {
-  if (OperatorDelete->param_size() == PlacementArgs.size() + 1)
+  if (OperatorDelete->param_size() != PlacementArgs.size() + 2)
     return false;
 
   return OperatorDelete->parameters()[1]->getType()->isSizeValT();
