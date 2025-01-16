@@ -2936,15 +2936,21 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
         FunctionDecl *Fn = nullptr;
         if (FunctionTemplateDecl *FnTmpl =
                 dyn_cast<FunctionTemplateDecl>((*D)->getUnderlyingDecl())) {
+          if (TrySizeVal) {
+            auto Parameters = FnTmpl->getTemplatedDecl()->parameters();
+
+            // P3492: Reject function template candidates where the second
+            // parameter is dependent.
+            if (Parameters.size() >= 2 &&
+                Parameters[1]->getType()->isDependentType())
+              continue;
+          }
+
           // Perform template argument deduction to try to match the
           // expected function type.
           TemplateDeductionInfo Info(StartLoc);
           if (DeduceTemplateArguments(FnTmpl, nullptr, ExpectedFunctionType, Fn,
                                       Info) != TemplateDeductionResult::Success)
-            continue;
-
-          // P3492-TODO: Reject a match with dependent size_val_t parameter.
-          if (TrySizeVal && Fn->parameters()[1]->getType()->isDependentType())
             continue;
         } else
           Fn = cast<FunctionDecl>((*D)->getUnderlyingDecl());
