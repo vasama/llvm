@@ -228,6 +228,7 @@ public:
   bool VisitCXXDeleteExpr(const CXXDeleteExpr *E);
   bool VisitBlockExpr(const BlockExpr *E);
   bool VisitCXXTypeidExpr(const CXXTypeidExpr *E);
+  bool VisitCXXUnwrapExpr(const CXXUnwrapExpr *E);
 
   // Statements.
   bool visitCompoundStmt(const CompoundStmt *S);
@@ -419,6 +420,7 @@ private:
   bool compileConstructor(const CXXConstructorDecl *Ctor);
   bool compileDestructor(const CXXDestructorDecl *Dtor);
   bool compileUnionAssignmentOperator(const CXXMethodDecl *MD);
+  bool emitReturnExpr(SourceInfo L, const Expr *E, bool IsExpr);
 
   bool checkLiteralType(const Expr *E);
   bool maybeEmitDeferredVarInit(const VarDecl *VD);

@@ -251,6 +251,7 @@ PUNCTUATOR(hashat,              "#@")
 PUNCTUATOR(periodstar,          ".*")
 PUNCTUATOR(arrowstar,           "->*")
 PUNCTUATOR(coloncolon,          "::")
+PUNCTUATOR(exclaimquestion,     "!?")
 
 // Objective C support.
 PUNCTUATOR(at,                  "@")

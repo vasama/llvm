@@ -2312,7 +2312,7 @@ public:
 
   /// isPostfix - Return true if this is a postfix operation, like x++.
   static bool isPostfix(Opcode Op) {
-    return Op == UO_PostInc || Op == UO_PostDec;
+    return Op == UO_PostInc || Op == UO_PostDec || Op == UO_Unwrap;
   }
 
   /// isPrefix - Return true if this is a prefix operation, like --x.

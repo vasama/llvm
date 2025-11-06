@@ -177,6 +177,18 @@ bool EvalEmitter::speculate(const CallExpr *E, const LabelTy &EndLabel) {
   return this->emitBool(true, E);
 }
 
+bool EvalEmitter::emitClearStack(bool KeepTop, SourceInfo Info) {
+  if (!isActive())
+    return true;
+
+  assert(S.Current);
+  if (KeepTop)
+    S.Stk.clearToButKeepTop(S.Current->getFrameOffset());
+  else
+    S.Stk.clearTo(S.Current->getFrameOffset());
+  return true;
+}
+
 template <PrimType OpType> bool EvalEmitter::emitRet(SourceInfo Info) {
   if (!isActive())
     return true;

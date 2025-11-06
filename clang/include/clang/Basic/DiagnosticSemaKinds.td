@@ -12534,6 +12534,8 @@ def note_redefinition_include_same_file : Note<
 let CategoryName = "Coroutines Issue" in {
 def err_return_in_coroutine : Error<
   "return statement not allowed in coroutine; did you mean 'co_return'?">;
+def err_unwrap_in_coroutine : Error<
+  "'!?' expression not allowed in coroutine">;
 def note_declared_coroutine_here : Note<
   "function is a coroutine due to use of '%0' here">;
 def err_coroutine_objc_method : Error<
@@ -12641,6 +12643,25 @@ def warn_coroutine_type_aware_allocator_ignored : Warning <
   "type aware %0 will not be used for coroutine allocation">,
   InGroup<CoroTypeAwareAllocationFunction>;
 } // end of coroutines issue category
+
+let CategoryName = "Unwrap Operator Issue" in {
+def err_unwrap_type_missing_arg_specialization : Error<
+  "!? requires definition of specialization %0"
+>;
+def err_unwrap_outside_function : Error<
+  "!? cannot be used outside a function"
+>;
+def err_unwrap_invalid_func_context : Error<
+  "!? cannot be used in %select{a constructor|a destructor"
+  "|the 'main' function|a function with a deduced return type|a coroutine}0"
+>;
+def err_implied_unwrap_type_not_found : Error<
+  "%0 type was not found; include <try_traits> before using !?"
+>;
+def err_malformed_std_try_traits : Error<
+  "std::try_traits isn't a class template"
+>;
+} // end of unwrap issue category
 
 let CategoryName = "Documentation Issue" in {
 def warn_not_a_doxygen_trailing_member_comment : Warning<

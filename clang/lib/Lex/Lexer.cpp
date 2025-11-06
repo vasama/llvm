@@ -4148,8 +4148,12 @@ LexStart:
     Kind = tok::tilde;
     break;
   case '!':
-    if (getCharAndSize(CurPtr, SizeTmp) == '=') {
+    Char = getCharAndSize(CurPtr, SizeTmp);
+    if (Char == '=') {
       Kind = tok::exclaimequal;
+      CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
+    } else if (Char == '?') {
+      Kind = tok::exclaimquestion;
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
     } else {
       Kind = tok::exclaim;

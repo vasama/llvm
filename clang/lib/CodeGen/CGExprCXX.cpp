@@ -19,6 +19,7 @@
 #include "TargetInfo.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
+#include "llvm/ADT/ScopeExit.h"
 #include "llvm/IR/Intrinsics.h"
 
 using namespace clang;
@@ -2324,4 +2325,60 @@ llvm::Value *CodeGenFunction::EmitDynamicCast(Address ThisAddr,
   }
 
   return Value;
+}
+
+static std::pair<llvm::BasicBlock *, llvm::BasicBlock *>
+createUnwrapBlocks(CodeGenFunction &CGF, const Twine &Prefix) {
+  return {
+    CGF.createBasicBlock(Prefix + ".break"),
+    CGF.createBasicBlock(Prefix + ".continue"),
+  };
+}
+
+static std::variant<LValue, RValue> emitUnwrapExpr(CodeGenFunction &CGF,
+                                                   const CXXUnwrapExpr &E,
+                                                   AggValueSlot AggSlot,
+                                                   bool IgnoreResult,
+                                                   bool ForLValue) {
+  auto CommonBinder =
+      CodeGenFunction::OpaqueValueMappingData::bind(CGF, E.getOpaqueValue(),
+                                                    E.getCommonExpr());
+  auto UnbindCommonOnExit =
+      llvm::make_scope_exit([&] { CommonBinder.unbind(CGF); });
+
+  auto [BreakBlock, ContinueBlock] =
+    createUnwrapBlocks(CGF, Twine("unwrap") + Twine(++CGF.UnwrapNum));
+
+  // Branch to either continue or break depending on the condition.
+  CGF.EmitBranchOnBoolExpr(E.getConditionExpr(), ContinueBlock, BreakBlock, 0);
+
+  // Emit break expression and return.
+  CGF.EmitBlock(BreakBlock);
+
+  auto *Return = ReturnStmt::Create(CGF.getContext(), E.getOpLoc(),
+                                    E.getReturnExpr(),
+                                    /*NRVOCandidate=*/nullptr);
+  CGF.EmitReturnStmt(*Return);
+
+  // Emit continue expression.
+  CGF.EmitBlock(ContinueBlock);
+
+  if (ForLValue)
+    return CGF.EmitLValue(E.getContinueExpr());
+  else
+    return CGF.EmitAnyExpr(E.getContinueExpr(), AggSlot, IgnoreResult);
+}
+
+LValue CodeGenFunction::EmitCXXUnwrapLValue(const CXXUnwrapExpr &E) {
+  auto R = emitUnwrapExpr(*this, E, AggValueSlot::ignored(),
+                          /*IgnoreResult=*/false, /*ForLValue=*/true);
+  return std::get<LValue>(R);
+}
+
+RValue CodeGenFunction::EmitCXXUnwrapExpr(const CXXUnwrapExpr &E,
+                                          AggValueSlot AggSlot,
+                                          bool IgnoreResult) {
+  auto R = emitUnwrapExpr(*this, E, AggSlot, IgnoreResult,
+                          /*ForLValue=*/false);
+  return std::get<RValue>(R);
 }

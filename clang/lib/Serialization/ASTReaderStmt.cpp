@@ -461,6 +461,13 @@ void ASTStmtReader::VisitMSAsmStmt(MSAsmStmt *S) {
                 Constraints, Exprs, Clobbers);
 }
 
+void ASTStmtReader::VisitCXXUnwrapExpr(CXXUnwrapExpr *E) {
+  VisitExpr(E);
+  E->OpLoc = readSourceLocation();
+  for (auto &SubExpr : E->SubExprs)
+    SubExpr = Record.readSubStmt();
+}
+
 void ASTStmtReader::VisitCoroutineBodyStmt(CoroutineBodyStmt *S) {
   VisitStmt(S);
   assert(Record.peekInt() == S->NumParams);

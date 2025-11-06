@@ -5602,41 +5602,60 @@ bool Compiler<Emitter>::visitDeclStmt(const DeclStmt *DS,
 }
 
 template <class Emitter>
-bool Compiler<Emitter>::visitReturnStmt(const ReturnStmt *RS) {
-  if (this->InStmtExpr)
-    return this->emitUnsupported(RS);
+bool Compiler<Emitter>::emitReturnExpr(SourceInfo L, const Expr *E,
+                                       bool IsExpr) {
+  auto EmitRetVoid = [&]() -> bool {
+    this->emitCleanup();
+    if (!this->emitClearStack(/*KeepTop=*/false, L))
+      return false;
+    return this->emitRetVoid(L);
+  };
 
-  if (const Expr *RE = RS->getRetValue()) {
+  if (E) {
     LocalScope<Emitter> RetScope(this);
     if (ReturnType) {
       // Primitive types are simply returned.
-      if (!this->visit(RE))
+      if (!this->visit(E))
         return false;
       this->emitCleanup();
-      return this->emitRet(*ReturnType, RS);
+      if (!this->emitClearStack(/*KeepTop=*/true, L))
+        return false;
+      return this->emitRet(*ReturnType, L);
     }
 
-    if (RE->getType()->isVoidType()) {
-      if (!this->visit(RE))
+    if (E->getType()->isVoidType()) {
+      if (!this->visit(E))
         return false;
     } else {
       InitLinkScope<Emitter> ILS(this, InitLink::RVO());
       // RVO - construct the value in the return location.
-      if (!this->emitRVOPtr(RE))
+      if (!this->emitRVOPtr(E))
         return false;
-      if (!this->visitInitializer(RE))
+      if (!this->visitInitializer(E))
         return false;
-      if (!this->emitPopPtr(RE))
+      if (!this->emitPopPtr(E))
         return false;
-
-      this->emitCleanup();
-      return this->emitRetVoid(RS);
+      return EmitRetVoid();
     }
   }
 
   // Void return.
-  this->emitCleanup();
-  return this->emitRetVoid(RS);
+  return EmitRetVoid();
+}
+
+template <class Emitter>
+bool Compiler<Emitter>::visitReturnStmt(const ReturnStmt *RS) {
+  if (this->InStmtExpr) {
+    // When evaluating a return within an expression, it is possible that the
+    // expression is not nested within a function. In that case, any active
+    // evaluation fails. This only affects the EvalEmitter instantiation.
+    if (this->isActive() && !this->getCurrentFunction())
+      return false;
+
+    return this->emitUnsupported(RS);
+  }
+
+  return emitReturnExpr(RS, RS->getRetValue(), this->InStmtExpr);
 }
 
 template <class Emitter> bool Compiler<Emitter>::visitIfStmt(const IfStmt *IS) {
@@ -6720,6 +6739,7 @@ bool Compiler<Emitter>::VisitUnaryOperator(const UnaryOperator *E) {
     return this->visitZeroInitializer(*T, SubExpr->getType(), SubExpr);
   }
   case UO_Extension:
+  case UO_Unwrap:
     return this->delegate(SubExpr);
   case UO_Coawait:
     assert(false && "Unhandled opcode");
@@ -7111,6 +7131,35 @@ template <class Emitter>
 bool Compiler<Emitter>::VisitDeclRefExpr(const DeclRefExpr *E) {
   const auto *D = E->getDecl();
   return this->visitDeclRef(D, E);
+}
+
+template <class Emitter>
+bool Compiler<Emitter>::VisitCXXUnwrapExpr(const CXXUnwrapExpr *E) {
+  auto visitChildExpr = [&](const Expr *E) -> bool {
+    LocalScope<Emitter> S(this);
+    if (!this->delegate(E))
+      return false;
+    return S.destroyLocals();
+  };
+
+  LabelTy LabelContinue = this->getLabel();
+
+  if (!this->visitBool(E->getConditionExpr()))
+    return false;
+  if (!this->jumpTrue(LabelContinue))
+    return false;
+  // When evaluating an unwrap expression, it is possible that the expression is
+  // not nested within a function. In that case, any active evaluation fails.
+  // This only affects the EvalEmitter instantiation.
+  if (this->isActive() && !this->getCurrentFunction())
+    return false;
+  if (!this->emitReturnExpr(E, E->getReturnExpr(), /*IsExpr=*/true))
+    return false;
+  this->emitLabel(LabelContinue);
+  if (!visitChildExpr(E->getContinueExpr()))
+    return false;
+
+  return true;
 }
 
 template <class Emitter> void Compiler<Emitter>::emitCleanup() {

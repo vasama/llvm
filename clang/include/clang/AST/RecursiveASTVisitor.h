@@ -3105,6 +3105,13 @@ DEF_TRAVERSE_STMT(CoyieldExpr, {
   }
 })
 
+DEF_TRAVERSE_STMT(CXXUnwrapExpr, {
+  if (!getDerived().shouldVisitImplicitCode()) {
+    TRY_TO_TRAVERSE_OR_ENQUEUE_STMT(S->getOperandExpr());
+    ShouldVisitChildren = false;
+  }
+})
+
 DEF_TRAVERSE_STMT(ConceptSpecializationExpr, {
   TRY_TO(TraverseConceptReference(S->getConceptReference()));
 })

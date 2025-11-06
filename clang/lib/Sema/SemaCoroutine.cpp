@@ -676,11 +676,16 @@ static void checkReturnStmtInCoroutine(Sema &S, FunctionScopeInfo *FSI) {
   assert(FSI && "FunctionScopeInfo is null");
   assert(FSI->FirstCoroutineStmtLoc.isValid() &&
          "first coroutine location not set");
-  if (FSI->FirstReturnLoc.isInvalid())
-    return;
-  S.Diag(FSI->FirstReturnLoc, diag::err_return_in_coroutine);
-  S.Diag(FSI->FirstCoroutineStmtLoc, diag::note_declared_coroutine_here)
-      << FSI->getFirstCoroutineStmtKeyword();
+  if (FSI->FirstReturnLoc.isValid()) {
+    S.Diag(FSI->FirstReturnLoc, diag::err_return_in_coroutine);
+    S.Diag(FSI->FirstCoroutineStmtLoc, diag::note_declared_coroutine_here)
+        << FSI->getFirstCoroutineStmtKeyword();
+  }
+  if (FSI->FirstUnwrapLoc.isValid()) {
+    S.Diag(FSI->FirstUnwrapLoc, diag::err_unwrap_in_coroutine);
+    S.Diag(FSI->FirstCoroutineStmtLoc, diag::note_declared_coroutine_here)
+        << FSI->getFirstCoroutineStmtKeyword();
+  }
 }
 
 bool Sema::ActOnCoroutineBodyStart(Scope *SC, SourceLocation KWLoc,
@@ -2033,4 +2038,34 @@ ClassTemplateDecl *Sema::lookupCoroutineTraits(SourceLocation KwLoc,
   }
 
   return StdCoroutineTraitsCache;
+}
+
+ClassTemplateDecl *Sema::lookupTryTraits(SourceLocation KwLoc,
+                                         SourceLocation FuncLoc) {
+  if (StdTryTraitsCache)
+    return StdTryTraitsCache;
+
+  IdentifierInfo const &TraitIdent = PP.getIdentifierTable().get("try_traits");
+
+  NamespaceDecl *StdSpace = getStdNamespace();
+  LookupResult Result(*this, &TraitIdent, FuncLoc, LookupOrdinaryName);
+  bool Found = StdSpace && LookupQualifiedName(Result, StdSpace);
+
+  if (!Found) {
+    // The goggles, we found nothing!
+    Diag(KwLoc, diag::err_implied_unwrap_type_not_found)
+        << "std::try_traits";
+    return nullptr;
+  }
+
+  // try_traits is required to be a class template.
+  StdTryTraitsCache = Result.getAsSingle<ClassTemplateDecl>();
+  if (!StdTryTraitsCache) {
+    Result.suppressDiagnostics();
+    NamedDecl *Found = *Result.begin();
+    Diag(Found->getLocation(), diag::err_malformed_std_try_traits);
+    return nullptr;
+  }
+
+  return StdTryTraitsCache;
 }

@@ -83,6 +83,7 @@ class CXXFoldExpr;
 class CXXParenListInitExpr;
 class TypeTraitExpr;
 class ConceptSpecializationExpr;
+class CXXUnwrapExpr;
 class SYCLUniqueStableNameExpr;
 class PredefinedExpr;
 class CallExpr;
@@ -177,6 +178,7 @@ ExprDependence computeDependence(CXXParenListInitExpr *E);
 ExprDependence computeDependence(TypeTraitExpr *E);
 ExprDependence computeDependence(ConceptSpecializationExpr *E,
                                  bool ValueDependent);
+ExprDependence computeDependence(CXXUnwrapExpr *E);
 
 ExprDependence computeDependence(SYCLUniqueStableNameExpr *E);
 ExprDependence computeDependence(PredefinedExpr *E);

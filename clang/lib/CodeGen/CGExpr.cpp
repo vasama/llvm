@@ -1841,6 +1841,9 @@ LValue CodeGenFunction::EmitLValueHelper(const Expr *E,
     return EmitLValue(cast<PackIndexingExpr>(E)->getSelectedExpr());
   case Expr::HLSLOutArgExprClass:
     llvm_unreachable("cannot emit a HLSL out argument directly");
+
+  case Expr::CXXUnwrapExprClass:
+    return EmitCXXUnwrapLValue(*cast<CXXUnwrapExpr>(E));
   }
 }
 

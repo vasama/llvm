@@ -1550,6 +1550,10 @@ public:
                                     Constraints, Clobbers, Exprs, EndLoc);
   }
 
+  ExprResult RebuildCXXUnwrapExpr(SourceLocation UnwrapLoc, Expr *Result) {
+    return getSema().CreateUnwrapUnaryOp(UnwrapLoc, Result);
+  }
+
   /// Build a new co_return statement.
   ///
   /// By default, performs semantic analysis to build the new statement.
@@ -8720,6 +8724,14 @@ TreeTransform<Derived>::TransformMSAsmStmt(MSAsmStmt *S) {
                                        S->getNumOutputs(), S->getNumInputs(),
                                        S->getAllConstraints(), S->getClobbers(),
                                        TransformedExprs, S->getEndLoc());
+}
+
+template<typename Derived>
+ExprResult TreeTransform<Derived>::TransformCXXUnwrapExpr(CXXUnwrapExpr *E) {
+  ExprResult Operand = getDerived().TransformExpr(E->getOperandExpr());
+  if (Operand.isInvalid())
+    return ExprError();
+  return getDerived().RebuildCXXUnwrapExpr(E->getOpLoc(), Operand.get());
 }
 
 // C++ Coroutines

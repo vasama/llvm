@@ -219,12 +219,22 @@ enum class ArithOp { Add, Sub };
 void cleanupAfterFunctionCall(InterpState &S, CodePtr OpPC,
                               const Function *Func);
 
+inline bool ClearStack(InterpState &S, CodePtr &PC, bool KeepTop) {
+  assert(S.Current);
+  if (KeepTop)
+    S.Stk.clearToButKeepTop(S.Current->getFrameOffset());
+  else
+    S.Stk.clearTo(S.Current->getFrameOffset());
+  return true;
+}
+
 template <PrimType Name, class T = typename PrimConv<Name>::T>
 bool Ret(InterpState &S, CodePtr &PC) {
   const T &Ret = S.Stk.pop<T>();
 
   assert(S.Current);
   assert(S.Current->getFrameOffset() == S.Stk.size() && "Invalid frame");
+
   if (!S.checkingPotentialConstantExpression() || S.Current->Caller)
     cleanupAfterFunctionCall(S, PC, S.Current->getFunction());
 
@@ -243,6 +253,7 @@ bool Ret(InterpState &S, CodePtr &PC) {
 }
 
 inline bool RetVoid(InterpState &S, CodePtr &PC) {
+  assert(S.Current);
   assert(S.Current->getFrameOffset() == S.Stk.size() && "Invalid frame");
 
   if (!S.checkingPotentialConstantExpression() || S.Current->Caller)

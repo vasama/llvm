@@ -789,6 +789,7 @@ public:
     case tok::minusminus:
     case tok::exclaim:
     case tok::tilde:
+    case tok::exclaimquestion:
     case tok::kw_sizeof:
     case tok::kw_alignof:
       return true;

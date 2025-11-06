@@ -2384,6 +2384,10 @@ void StmtProfiler::VisitCoyieldExpr(const CoyieldExpr *S) {
   VisitExpr(S);
 }
 
+void StmtProfiler::VisitCXXUnwrapExpr(const CXXUnwrapExpr *S) {
+  VisitExpr(S);
+}
+
 void StmtProfiler::VisitOpaqueValueExpr(const OpaqueValueExpr *E) {
   VisitExpr(E);
 }

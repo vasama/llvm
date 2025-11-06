@@ -53,6 +53,14 @@ void InterpStack::clearTo(size_t NewSize) {
   assert(size() == NewSize);
 }
 
+void InterpStack::clearToButKeepTop(size_t NewSize) {
+  TYPE_SWITCH(ItemTypes.back(), {
+    T Top = this->pop<T>();
+    this->clearTo(NewSize);
+    this->push<T>(std::move(Top));
+  });
+}
+
 void *InterpStack::peekData(size_t Size) const {
   assert(Chunk && "Stack is empty!");
 

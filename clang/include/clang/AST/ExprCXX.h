@@ -5501,6 +5501,73 @@ public:
   }
 };
 
+class CXXUnwrapExpr final : public Expr {
+  friend class ASTStmtReader;
+
+  enum SubExpr { Operand, Common, Condition, Continue, Return, Count };
+
+  SourceLocation OpLoc;
+  Stmt *SubExprs[SubExpr::Count];
+  OpaqueValueExpr *OpaqueValue = nullptr;
+
+public:
+  CXXUnwrapExpr(SourceLocation OpLoc, Expr *Operand, Expr *Common,
+                Expr *Condition, Expr *Continue, Expr *Return,
+                OpaqueValueExpr *OpaqueValue)
+      : Expr(CXXUnwrapExprClass, Continue->getType(),
+             Continue->getValueKind(), Continue->getObjectKind()),
+        OpLoc(OpLoc), OpaqueValue(OpaqueValue) {
+    SubExprs[SubExpr::Operand] = Operand;
+    SubExprs[SubExpr::Common] = Common;
+    SubExprs[SubExpr::Condition] = Condition;
+    SubExprs[SubExpr::Continue] = Continue;
+    SubExprs[SubExpr::Return] = Return;
+    setDependence(computeDependence(this));
+  }
+
+  OpaqueValueExpr *getOpaqueValue() const { return OpaqueValue; }
+
+  Expr *getOperandExpr() const {
+    return static_cast<Expr *>(SubExprs[Operand]);
+  }
+
+  Expr *getCommonExpr() const {
+    return static_cast<Expr *>(SubExprs[Common]);
+  }
+
+  Expr *getConditionExpr() const {
+    return static_cast<Expr *>(SubExprs[Condition]);
+  }
+
+  Expr *getContinueExpr() const {
+    return static_cast<Expr *>(SubExprs[Continue]);
+  }
+
+  Expr *getReturnExpr() const {
+    return static_cast<Expr *>(SubExprs[Return]);
+  }
+
+  SourceLocation getOpLoc() const LLVM_READONLY {
+    return OpLoc;
+  }
+
+  SourceLocation getBeginLoc() const LLVM_READONLY {
+    return getOperandExpr()->getBeginLoc();
+  }
+
+  SourceLocation getEndLoc() const LLVM_READONLY {
+    return OpLoc;
+  }
+
+  child_range children() {
+    return child_range(SubExprs, SubExprs + SubExpr::Count);
+  }
+
+  const_child_range children() const {
+    return const_child_range(SubExprs, SubExprs + SubExpr::Count);
+  }
+};
+
 } // namespace clang
 
 #endif // LLVM_CLANG_AST_EXPRCXX_H

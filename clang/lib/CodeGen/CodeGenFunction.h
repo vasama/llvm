@@ -422,6 +422,8 @@ public:
   /// we prefer to insert allocas.
   llvm::AssertingVH<llvm::Instruction> AllocaInsertPt;
 
+  unsigned UnwrapNum = 0;
+
 private:
   /// PostAllocaInsertPt - This is a place in the prologue where code can be
   /// inserted that will be dominated by all the static allocas. This helps
@@ -3642,6 +3644,11 @@ public:
                          bool ignoreResult = false);
   LValue EmitCoyieldLValue(const CoyieldExpr *E);
   RValue EmitCoroutineIntrinsic(const CallExpr *E, unsigned int IID);
+
+  LValue EmitCXXUnwrapLValue(const CXXUnwrapExpr &E);
+  RValue EmitCXXUnwrapExpr(const CXXUnwrapExpr &E,
+                           AggValueSlot AggSlot = AggValueSlot::ignored(),
+                           bool IgnoreResult = false);
 
   void EnterCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
   void ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);

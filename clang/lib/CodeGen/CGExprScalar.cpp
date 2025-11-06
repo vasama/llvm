@@ -498,6 +498,9 @@ public:
   Value *VisitUnaryCoawait(const UnaryOperator *E) {
     return Visit(E->getSubExpr());
   }
+  Value *VisitCXXUnwrapExpr(CXXUnwrapExpr *E) {
+    return CGF.EmitCXXUnwrapExpr(*E).getScalarVal();
+  }
 
   // Leaves.
   Value *VisitIntegerLiteral(const IntegerLiteral *E) {

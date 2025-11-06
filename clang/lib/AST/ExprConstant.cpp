@@ -8718,6 +8718,33 @@ public:
     return DerivedSuccess(RVal, UO);
   }
 
+  bool VisitCXXUnwrapExpr(const CXXUnwrapExpr *E) {
+    LValue CommonLV;
+    APValue &Temporary = Info.CurrentCall->createTemporary(
+                             E->getOpaqueValue(),
+                             getStorageType(Info.Ctx, E->getOpaqueValue()),
+                             ScopeKind::FullExpression, CommonLV);
+
+    if (!Evaluate(Temporary, Info, E->getCommonExpr()))
+      return false;
+
+    bool Condition;
+    if (!EvaluateAsBooleanCondition(E->getConditionExpr(), Condition, Info))
+      return false;
+
+    if (Condition)
+      return StmtVisitorTy::Visit(E->getContinueExpr());
+
+    unsigned DiagID =
+      Info.Ctx.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Error,
+                                                "returning via !? during constant evaluation is not yet supported");
+
+    // FIXME: Returning from an unwrap expression is not currently supported.
+    //        To do so would require propagating the ESR_Returned status down to
+    //        the enclosing EvaluateStmt call.
+    return Error(E, DiagID);
+  }
+
   bool VisitStmtExpr(const StmtExpr *E) {
     // We will have checked the full-expressions inside the statement expression
     // when they were completed, and don't need to check them again now.
@@ -19414,6 +19441,7 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
   case Expr::SYCLUniqueStableNameExprClass:
   case Expr::CXXParenListInitExprClass:
   case Expr::HLSLOutArgExprClass:
+  case Expr::CXXUnwrapExprClass:
     return ICEDiag(IK_NotICE, E->getBeginLoc());
 
   case Expr::InitListExprClass: {
@@ -19516,6 +19544,7 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
     case UO_Not:
     case UO_Real:
     case UO_Imag:
+    case UO_Unwrap:
       return CheckICE(Exp->getSubExpr(), Ctx);
     }
     llvm_unreachable("invalid unary operator class");

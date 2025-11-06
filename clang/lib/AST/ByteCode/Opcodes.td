@@ -189,6 +189,11 @@ def BCP : Opcode {
 // Returns
 //===----------------------------------------------------------------------===//
 
+def ClearStack : Opcode {
+  let Args = [ArgBool];
+  let HasCustomEval = 1;
+}
+
 // [Value] -> []
 def Ret : Opcode {
   let Types = [AllTypeClass];

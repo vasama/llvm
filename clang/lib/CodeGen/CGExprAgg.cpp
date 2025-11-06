@@ -132,6 +132,9 @@ public:
   void VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *E) {
     return Visit(E->getReplacement());
   }
+  void VisitCXXUnwrapExpr(CXXUnwrapExpr *E) {
+    CGF.EmitCXXUnwrapExpr(*E, Dest, IsResultUnused);
+  }
 
   void VisitConstantExpr(ConstantExpr *E) {
     EnsureDest(E->getType());

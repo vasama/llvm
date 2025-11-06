@@ -922,6 +922,18 @@ ExprDependence clang::computeDependence(ConceptSpecializationExpr *E,
   return Res;
 }
 
+ExprDependence clang::computeDependence(CXXUnwrapExpr *E) {
+  ExprDependence D = E->getContinueExpr()->getDependence();
+  D |= E->getConditionExpr()->getDependence() &
+       (ExprDependence::Instantiation | ExprDependence::Error);
+  if (Expr *Return = E->getReturnExpr()) {
+    D |= Return->getDependence() &
+         (ExprDependence::Instantiation | ExprDependence::Error);
+  }
+  
+  return D;
+}
+
 ExprDependence clang::computeDependence(ObjCArrayLiteral *E) {
   auto D = ExprDependence::None;
   Expr **Elements = E->getElements();

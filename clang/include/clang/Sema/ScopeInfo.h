@@ -185,6 +185,9 @@ public:
   /// First 'return' statement in the current function.
   SourceLocation FirstReturnLoc;
 
+  /// First '!?' expression in the current function.
+  SourceLocation FirstUnwrapLoc;
+
   /// First C++ 'try' or ObjC @try statement in the current function.
   SourceLocation FirstCXXOrObjCTryLoc;
   enum { TryLocIsCXX, TryLocIsObjC, Unknown } FirstTryType = Unknown;

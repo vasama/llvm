@@ -2670,6 +2670,7 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
     case UO_PostDec:
     case UO_PreInc:
     case UO_PreDec:                 // ++/--
+    case UO_Unwrap:
       return false;  // Not a warning.
     case UO_Real:
     case UO_Imag:
@@ -3688,6 +3689,7 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case FunctionParmPackExprClass:
   case RecoveryExprClass:
   case CXXFoldExprClass:
+  case CXXUnwrapExprClass:
     // Make a conservative assumption for dependent nodes.
     return IncludePossibleEffects;
 

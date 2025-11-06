@@ -4836,8 +4836,9 @@ Sema::ActOnPostfixUnaryOp(Scope *S, SourceLocation OpLoc,
   UnaryOperatorKind Opc;
   switch (Kind) {
   default: llvm_unreachable("Unknown unary op!");
-  case tok::plusplus:   Opc = UO_PostInc; break;
-  case tok::minusminus: Opc = UO_PostDec; break;
+  case tok::plusplus:        Opc = UO_PostInc; break;
+  case tok::minusminus:      Opc = UO_PostDec; break;
+  case tok::exclaimquestion: Opc = UO_Unwrap; break;
   }
 
   // Since this might is a postfix expression, get rid of ParenListExprs.
@@ -16019,6 +16020,8 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
              "the co_await expression must be non-dependant before "
              "building operator co_await");
       return Input;
+    case UO_Unwrap:
+      return ExprError();
     }
   }
   if (resultType.isNull() || Input.isInvalid())
@@ -16044,6 +16047,156 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
   if (ConvertHalfVec)
     return convertVector(UO, Context.HalfTy, *this);
   return UO;
+}
+
+static bool isValidUnwrapContext(Sema &S, SourceLocation Loc) {
+  auto *FD = dyn_cast<FunctionDecl>(S.CurContext);
+  if (!FD) {
+    S.Diag(Loc, diag::err_unwrap_outside_function);
+    return false;
+  }
+
+  enum InvalidFuncDiag {
+    DiagCtor,
+    DiagDtor,
+    DiagMain,
+    DiagAutoRet,
+    DiagCoro,
+  };
+
+  auto DiagInvalid = [&](InvalidFuncDiag ID) {
+    S.Diag(Loc, diag::err_unwrap_invalid_func_context) << ID;
+    return false;
+  };
+
+  if (isa<CXXConstructorDecl>(FD))
+    return DiagInvalid(DiagCtor);
+  if (isa<CXXDestructorDecl>(FD))
+    return DiagInvalid(DiagDtor);
+  if (FD->isMain())
+    return DiagInvalid(DiagMain);
+  if (FD->getReturnType()->isUndeducedType())
+    return DiagInvalid(DiagAutoRet);
+  return true;
+}
+
+ExprResult Sema::CreateUnwrapUnaryOp(SourceLocation OpLoc, Expr *E) {
+  bool Unevaluated = isUnevaluatedContext();
+  if (!Unevaluated) {
+    if (!isValidUnwrapContext(*this, OpLoc))
+      return ExprError();
+
+    FunctionScopeInfo *FSI = getCurFunction();
+    if (FSI->FirstUnwrapLoc.isInvalid()) {
+      FSI->FirstUnwrapLoc = OpLoc;
+      if (FSI->isCoroutine()) {
+        Diag(OpLoc, diag::err_unwrap_in_coroutine);
+        Diag(FSI->FirstCoroutineStmtLoc, diag::note_declared_coroutine_here)
+            << FSI->getFirstCoroutineStmtKeyword();
+        return ExprError();
+      }
+    }
+  }
+
+  auto *FD = dyn_cast_if_present<FunctionDecl>(CurContext);
+  const SourceLocation FuncLoc = FD ? FD->getLocation() : SourceLocation();
+  ClassTemplateDecl *TryTraits = lookupTryTraits(OpLoc, FuncLoc);
+  if (!TryTraits)
+    return ExprError();
+
+  auto GetTraitRecord = [&](QualType T) -> CXXRecordDecl * {
+    if (T->isDependentType())
+      return TryTraits->getTemplatedDecl();
+
+    T = T.getUnqualifiedType();
+
+    TemplateArgumentListInfo Args(OpLoc, OpLoc);
+    Args.addArgument(TemplateArgumentLoc(T, getASTContext().getTrivialTypeSourceInfo(T)));
+
+    QualType Trait = CheckTemplateIdType(
+      ElaboratedTypeKeyword::None, TemplateName(TryTraits), OpLoc, Args,
+      /*Scope=*/nullptr, /*ForNestedNameSpecifier=*/false);
+
+    if (Trait.isNull())
+      return nullptr;
+    if (RequireCompleteType(OpLoc, Trait,
+                            diag::err_unwrap_type_missing_arg_specialization))
+      return nullptr;
+
+    auto *RD = Trait->getAsCXXRecordDecl();
+    assert(RD && "specialization of class template is not a class?");
+    return RD;
+  };
+
+  auto BuildTraitCall = [&](CXXRecordDecl *Trait, StringRef Name, Expr *Arg) -> ExprResult {
+    DeclarationName DN = PP.getIdentifierInfo(Name);
+    LookupResult Lookup(*this, DN, OpLoc, Sema::LookupOrdinaryName);
+
+    if (!Trait->getDescribedClassTemplate() && !LookupQualifiedName(Lookup, Trait))
+      return ExprError();
+
+    const auto &Functions = Lookup.asUnresolvedSet();
+    Expr *Fn = UnresolvedLookupExpr::Create(
+      Context, Trait, NestedNameSpecifierLoc(), SourceLocation(),
+      DeclarationNameInfo(DN, OpLoc), /*RequiresADL=*/false, /*Args=*/nullptr,
+      Functions.begin(), Functions.end(), /*KnownDependent=*/false,
+      /*KnownInstantiationDependent=*/false);
+
+    return BuildCallExpr(/*Scope=*/nullptr, Fn, OpLoc, Arg, OpLoc);
+  };
+
+  QualType ArgType = E->getType().getNonReferenceType();
+
+  CXXRecordDecl *ArgTrait = GetTraitRecord(ArgType);
+  if (ArgTrait == nullptr)
+    return ExprError();
+
+  CXXRecordDecl *RetTrait = nullptr;
+  if (!Unevaluated) {
+    RetTrait = GetTraitRecord(FD->getReturnType());
+    if (RetTrait == nullptr)
+      return ExprError();
+  }
+
+  Expr *Common = E;
+  if (Common->isPRValue()) {
+    Common = CreateMaterializeTemporaryExpr(ArgType, E,
+                                            /*BoundToLValueReference=*/true);
+  }
+
+  OpaqueValueExpr *Opaque = new (Context)
+    OpaqueValueExpr(OpLoc, Common->getType(), VK_LValue,
+                    Common->getObjectKind(), Common);
+
+  ExprResult Condition = BuildTraitCall(ArgTrait, "should_continue", Opaque);
+  if (Condition.isInvalid())
+    return ExprError();
+
+  Expr *Consume = Opaque;
+  if (E->Classify(Context).isRValue()) {
+    Consume = ImplicitCastExpr::Create(Context, Opaque->getType(), CK_NoOp,
+                                       Opaque, /*Operand=*/nullptr, VK_XValue,
+                                       FPOptionsOverride());
+  }
+
+  ExprResult Continue = BuildTraitCall(ArgTrait, "extract_continue", Consume);
+  if (Continue.isInvalid())
+    return ExprError();
+
+  ExprResult Break = BuildTraitCall(ArgTrait, "extract_break", Consume);
+  if (Break.isInvalid())
+    return ExprError();
+
+  Expr *ReturnExpr = nullptr;
+  if (!Unevaluated) {
+    ExprResult Return = BuildTraitCall(RetTrait, "from_break", Break.get());
+    if (Return.isInvalid())
+      return ExprError();
+    ReturnExpr = Return.get();
+  }
+
+  return new (Context) CXXUnwrapExpr(OpLoc, E, Common, Condition.get(),
+                                     Continue.get(), ReturnExpr, Opaque);
 }
 
 bool Sema::isQualifiedMemberAccess(Expr *E) {
@@ -16111,6 +16264,9 @@ ExprResult Sema::BuildUnaryOp(Scope *S, SourceLocation OpLoc,
     if (Result.isInvalid()) return ExprError();
     Input = Result.get();
   }
+
+  if (getLangOpts().CPlusPlus && Opc == UO_Unwrap)
+    return CreateUnwrapUnaryOp(OpLoc, Input);
 
   if (getLangOpts().CPlusPlus && Input->getType()->isOverloadableType() &&
       UnaryOperator::getOverloadedOperator(Opc) != OO_None &&

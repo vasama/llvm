@@ -1943,6 +1943,7 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::CXXRewrittenBinaryOperatorClass:
     case Stmt::RequiresExprClass:
     case Stmt::EmbedExprClass:
+    case Stmt::CXXUnwrapExprClass:
       // Fall through.
 
     // Cases we intentionally don't evaluate, since they don't need

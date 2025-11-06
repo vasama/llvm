@@ -85,6 +85,10 @@ protected:
   /// Callback for registering a local.
   Local createLocal(Descriptor *D);
 
+  const Function *getCurrentFunction() const {
+    return S.Current->getFunction();
+  }
+
   /// Returns the source location of the current opcode.
   SourceInfo getSource(const Function *F, CodePtr PC) const override {
     return (F && F->hasBody()) ? F->getSource(PC) : CurrentSource;

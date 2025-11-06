@@ -3181,6 +3181,24 @@ public:
   //
   //
 
+  /// \name C++ Unwrap expression
+  ///@{
+
+  ClassTemplateDecl *StdTryTraitsCache;
+
+  /// Lookup 'try_traits' in std namespace. The namespace found is recorded in
+  /// Namespace.
+  ClassTemplateDecl *lookupTryTraits(SourceLocation OpLoc,
+                                     SourceLocation FuncLoc);
+
+  ///@}
+
+  //
+  //
+  // -------------------------------------------------------------------------
+  //
+  //
+
   /// \name C++ Scope Specifiers
   /// Implementations are in SemaCXXScopeSpec.cpp
   ///@{
@@ -7287,6 +7305,7 @@ public:
   // Binary/Unary Operators.  'Tok' is the token for the operator.
   ExprResult CreateBuiltinUnaryOp(SourceLocation OpLoc, UnaryOperatorKind Opc,
                                   Expr *InputExpr, bool IsAfterAmp = false);
+  ExprResult CreateUnwrapUnaryOp(SourceLocation OpLoc, Expr *InputExpr);
   ExprResult BuildUnaryOp(Scope *S, SourceLocation OpLoc, UnaryOperatorKind Opc,
                           Expr *Input, bool IsAfterAmp = false);
 

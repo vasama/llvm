@@ -36,6 +36,7 @@ void FunctionScopeInfo::Clear() {
   ObjCIsSecondaryInit = false;
   ObjCWarnForNoInitDelegation = false;
   FirstReturnLoc = SourceLocation();
+  FirstUnwrapLoc = SourceLocation();
   FirstCXXOrObjCTryLoc = SourceLocation();
   FirstSEHTryLoc = SourceLocation();
   FirstVLALoc = SourceLocation();

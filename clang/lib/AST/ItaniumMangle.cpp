@@ -4942,6 +4942,9 @@ recurse:
   case Expr::PackIndexingExprClass:
     llvm_unreachable("unexpected statement kind");
 
+  case Expr::CXXUnwrapExprClass:
+    llvm_unreachable("unexpected statement kind; !? cannot appear in a mangling");
+
   case Expr::ConstantExprClass:
     E = cast<ConstantExpr>(E)->getSubExpr();
     goto recurse;

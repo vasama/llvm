@@ -4051,7 +4051,8 @@ private:
   bool isPostfixExpressionSuffixStart() {
     tok::TokenKind K = Tok.getKind();
     return (K == tok::l_square || K == tok::l_paren || K == tok::period ||
-            K == tok::arrow || K == tok::plusplus || K == tok::minusminus);
+            K == tok::arrow || K == tok::plusplus || K == tok::minusminus ||
+            K == tok::exclaimquestion);
   }
 
   /// Once the leading part of a postfix-expression is parsed, this

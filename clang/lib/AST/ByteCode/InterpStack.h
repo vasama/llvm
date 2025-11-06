@@ -79,6 +79,7 @@ public:
   /// Clears the stack.
   void clear();
   void clearTo(size_t NewSize);
+  void clearToButKeepTop(size_t NewSize);
 
   /// Returns whether the stack is empty.
   bool empty() const { return StackSize == 0; }

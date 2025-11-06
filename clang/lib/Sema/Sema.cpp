@@ -314,7 +314,7 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
       CodeSegStack(nullptr), StrictGuardStackCheckStack(false),
       FpPragmaStack(FPOptionsOverride()), CurInitSeg(nullptr),
       VisContext(nullptr), PragmaAttributeCurrentTargetDecl(nullptr),
-      StdCoroutineTraitsCache(nullptr), IdResolver(pp),
+      StdCoroutineTraitsCache(nullptr), StdTryTraitsCache(nullptr), IdResolver(pp),
       OriginalLexicalContext(nullptr), StdInitializerList(nullptr),
       StdTypeIdentity(nullptr),
       FullyCheckedComparisonCategories(

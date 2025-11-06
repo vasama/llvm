@@ -177,6 +177,9 @@ def CoyieldExpr : StmtNode<CoroutineSuspendExpr>;
 def ConceptSpecializationExpr : StmtNode<Expr>;
 def RequiresExpr : StmtNode<Expr>;
 
+// C++2d Unwrap operator
+def CXXUnwrapExpr : StmtNode<Expr>;
+
 // Obj-C Expressions.
 def ObjCStringLiteral : StmtNode<Expr>;
 def ObjCBoxedExpr : StmtNode<Expr>;

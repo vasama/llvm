@@ -430,6 +430,13 @@ void ASTStmtWriter::VisitMSAsmStmt(MSAsmStmt *S) {
   Code = serialization::STMT_MSASM;
 }
 
+void ASTStmtWriter::VisitCXXUnwrapExpr(CXXUnwrapExpr *E) {
+  VisitExpr(E);
+  Record.AddSourceLocation(E->getOpLoc());
+  for (Stmt *S : E->children())
+    Record.AddStmt(S);
+}
+
 void ASTStmtWriter::VisitCoroutineBodyStmt(CoroutineBodyStmt *CoroStmt) {
   VisitStmt(CoroStmt);
   Record.push_back(CoroStmt->getParamMoves().size());

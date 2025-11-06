@@ -478,6 +478,9 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
     if (isa<ArrayType>(E->getType()))
       return Cl::CL_ArrayTemporary;
     return Cl::CL_ClassTemporary;
+
+  case Expr::CXXUnwrapExprClass:
+    return ClassifyInternal(Ctx, cast<CXXUnwrapExpr>(E)->getContinueExpr());
   }
 
   llvm_unreachable("unhandled expression kind in classification");

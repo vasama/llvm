@@ -2739,6 +2739,11 @@ void StmtPrinter::VisitRequiresExpr(RequiresExpr *E) {
   OS << "}";
 }
 
+void StmtPrinter::VisitCXXUnwrapExpr(CXXUnwrapExpr *S) {
+  PrintExpr(S->getOperandExpr());
+  OS << " !?";
+}
+
 // C++ Coroutines
 
 void StmtPrinter::VisitCoroutineBodyStmt(CoroutineBodyStmt *S) {

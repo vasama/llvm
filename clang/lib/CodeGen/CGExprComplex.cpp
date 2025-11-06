@@ -130,6 +130,9 @@ public:
   ComplexPairTy VisitUnaryCoawait(const UnaryOperator *E) {
     return Visit(E->getSubExpr());
   }
+  ComplexPairTy VisitCXXUnwrapExpr(CXXUnwrapExpr *E) {
+    return CGF.EmitCXXUnwrapExpr(*E).getComplexVal();
+  }
 
   ComplexPairTy emitConstant(const CodeGenFunction::ConstantEmission &Constant,
                              Expr *E) {

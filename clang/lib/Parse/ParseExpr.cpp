@@ -229,7 +229,7 @@ Parser::ParseConstraintLogicalAndExpression(bool IsTrailingRequiresClause) {
                            /*CPlusPlus11=*/true) > prec::LogicalAnd ||
         // Postfix operators other than '(' (which will be checked for in
         // CheckConstraintExpression).
-        Tok.isOneOf(tok::period, tok::plusplus, tok::minusminus) ||
+        Tok.isOneOf(tok::period, tok::plusplus, tok::minusminus, tok::exclaimquestion) ||
         (Tok.is(tok::l_square) && !NextToken().is(tok::l_square))) {
       E = RecoverFromNonPrimary(E, /*Note=*/false);
       if (E.isInvalid())
@@ -1593,6 +1593,7 @@ Parser::ParseCastExpression(CastParseKind ParseKind, bool isAddressOfOperand,
     case tok::l_paren:
     case tok::plusplus:
     case tok::minusminus:
+    case tok::exclaimquestion:
       // "expected ';'" or similar is probably the right diagnostic here. Let
       // the caller decide what to do.
       if (Tok.isAtStartOfLine())
@@ -2028,8 +2029,9 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       }
       break;
     }
-    case tok::plusplus:    // postfix-expression: postfix-expression '++'
-    case tok::minusminus:  // postfix-expression: postfix-expression '--'
+    case tok::plusplus:        // postfix-expression: postfix-expression '++'
+    case tok::minusminus:      // postfix-expression: postfix-expression '--'
+    case tok::exclaimquestion: // postfix-expression: postfix-expression '!?'
       if (!LHS.isInvalid()) {
         Expr *Arg = LHS.get();
         LHS = Actions.ActOnPostfixUnaryOp(getCurScope(), Tok.getLocation(),

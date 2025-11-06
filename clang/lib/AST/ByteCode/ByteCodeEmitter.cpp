@@ -26,6 +26,8 @@ void ByteCodeEmitter::compileFunc(const FunctionDecl *FuncDecl,
   assert(Func);
   assert(FuncDecl->isThisDeclarationADefinition());
 
+  this->Func = Func;
+
   // Manually created functions that haven't been assigned proper
   // parameters yet.
   if (!FuncDecl->param_empty() && !FuncDecl->param_begin())

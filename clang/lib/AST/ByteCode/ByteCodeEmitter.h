@@ -66,6 +66,10 @@ protected:
   /// Callback for local registration.
   Local createLocal(Descriptor *D);
 
+  const Function *getCurrentFunction() const {
+    return Func;
+  }
+
   /// Parameter indices.
   llvm::DenseMap<const ParmVarDecl *, ParamOffset> Params;
   /// Lambda captures.
@@ -93,6 +97,8 @@ private:
   llvm::SmallVector<std::byte> Code;
   /// Opcode to expression mapping.
   SourceMap SrcMap;
+  /// Current function.
+  const Function *Func;
 
   /// Returns the offset for a jump or records a relocation.
   int32_t getOffset(LabelTy Label);
