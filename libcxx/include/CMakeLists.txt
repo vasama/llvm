@@ -939,6 +939,7 @@ set(files
   __utility/swap.h
   __utility/to_underlying.h
   __utility/try_key_extraction.h
+  __utility/try_traits.h
   __utility/unreachable.h
   __variant/monostate.h
   __vector/comparison.h
@@ -1080,6 +1081,7 @@ set(files
   system_error
   tgmath.h
   thread
+  try_traits
   tuple
   type_traits
   typeindex

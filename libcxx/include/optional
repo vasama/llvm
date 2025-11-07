@@ -246,9 +246,11 @@ namespace std {
 #  include <__type_traits/remove_reference.h>
 #  include <__utility/declval.h>
 #  include <__utility/forward.h>
+#  include <__utility/forward_like.h>
 #  include <__utility/in_place.h>
 #  include <__utility/move.h>
 #  include <__utility/swap.h>
+#  include <__utility/try_traits.h>
 #  include <__verbose_abort>
 #  include <initializer_list>
 #  include <version>
@@ -1362,6 +1364,32 @@ struct hash< __enable_hash_helper<optional<_Tp>, remove_const_t<_Tp>> > {
 
   _LIBCPP_HIDE_FROM_ABI size_t operator()(const optional<_Tp>& __opt) const {
     return static_cast<bool>(__opt) ? hash<remove_const_t<_Tp>>()(*__opt) : 0;
+  }
+};
+
+template <class _Tp>
+struct try_traits<optional<_Tp>> {
+  static constexpr bool should_continue(const optional<_Tp>& __opt) noexcept {
+    return __opt.has_value();
+  }
+
+  template <class _Optional>
+  static constexpr _ForwardLike<_Optional, _Tp> extract_continue(_Optional&& __opt) {
+    return static_cast<_ForwardLike<_Optional, _Tp>>(*__opt);
+  }
+
+  template <class _Optional>
+  static constexpr nullopt_t extract_break(const _Optional&) {
+    return nullopt;
+  }
+
+  template <class _Up>
+  static constexpr optional<_Tp> from_continue(_Up&& __value) {
+    return optional<_Tp>(std::forward<_Up>(__value));
+  }
+
+  static constexpr optional<_Tp> from_break(nullopt_t) {
+    return nullopt;
   }
 };
 

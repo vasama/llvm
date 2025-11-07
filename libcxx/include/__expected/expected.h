@@ -44,9 +44,11 @@
 #include <__utility/as_const.h>
 #include <__utility/exception_guard.h>
 #include <__utility/forward.h>
+#include <__utility/forward_like.h>
 #include <__utility/in_place.h>
 #include <__utility/move.h>
 #include <__utility/swap.h>
+#include <__utility/try_traits.h>
 #include <__verbose_abort>
 #include <initializer_list>
 
@@ -1898,6 +1900,33 @@ public:
 #  endif
   {
     return !__x.__has_val() && static_cast<bool>(__x.__unex() == __y.error());
+  }
+};
+
+template <class _Tp, class _Err>
+struct try_traits<expected<_Tp, _Err>> {
+  static constexpr bool should_continue(const expected<_Tp, _Err>& __expected) noexcept {
+    return __expected.has_value();
+  }
+
+  template <class _Expected>
+  static constexpr _ForwardLike<_Expected, _Tp> extract_continue(_Expected&& __expected) {
+    return static_cast<_ForwardLike<_Expected, _Tp>>(*__expected);
+  }
+
+  template <class _Expected>
+  static constexpr _ForwardLike<_Expected, _Err> extract_break(_Expected&& __expected) {
+    return static_cast<_ForwardLike<_Expected, _Tp>>(__expected.error());
+  }
+
+  template <class _Up>
+  static constexpr expected<_Tp, _Err> from_continue(_Up&& __value) {
+    return expected<_Tp, _Err>(std::forward<_Up>(__value));
+  }
+
+  template <class _Up>
+  static constexpr expected<_Tp, _Err> from_break(_Up&& __error) {
+    return expected<_Tp, _Err>(std::unexpect, std::forward<_Up>(__error));
   }
 };
 

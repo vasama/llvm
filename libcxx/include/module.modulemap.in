@@ -393,9 +393,10 @@ module std_core [system] {
 
   // Only the truly dependency-free parts of __utility are here
   module utility_core {
-    module declval  { header "__utility/declval.h" }
-    module empty    { header "__utility/empty.h" }
-    module forward  { header "__utility/forward.h" }
+    module declval     { header "__utility/declval.h" }
+    module empty       { header "__utility/empty.h" }
+    module forward     { header "__utility/forward.h" }
+    module try_traits  { header "__utility/try_traits.h" }
   }
 } // module std_core
 
