@@ -1916,7 +1916,7 @@ struct try_traits<expected<_Tp, _Err>> {
 
   template <class _Expected>
   static constexpr _ForwardLike<_Expected, _Err> extract_break(_Expected&& __expected) {
-    return static_cast<_ForwardLike<_Expected, _Tp>>(__expected.error());
+    return static_cast<_ForwardLike<_Expected, _Err>>(__expected.error());
   }
 
   template <class _Up>
